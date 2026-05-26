@@ -1,0 +1,25 @@
+{
+  "id": "computing-heroes",
+  "title": "Computing Heroes",
+  "subtitle": "The people who shaped the digital world",
+  "description": "A walk through the lives and ideas of the pioneers who invented the machine age.",
+  "theme": {
+    "primary": "#0f0f1a",
+    "accent": "#00d4ff",
+    "text": "#e8e8f0"
+  },
+  "music": "music.mp3",
+  "cover": "cover.jpg",
+  "sections": [
+    {
+      "title": "The Pioneers",
+      "panels": ["01-turing", "02-lovelace", "03-hopper", "04-berners-lee"]
+    }
+  ],
+  "panels": [
+    { "id": "01-turing",      "title": "Alan Turing",      "subtitle": "1912–1954 · Father of Computer Science" },
+    { "id": "02-lovelace",    "title": "Ada Lovelace",     "subtitle": "1815–1852 · The First Programmer" },
+    { "id": "03-hopper",      "title": "Grace Hopper",     "subtitle": "1906–1992 · The Admiral Who Taught Machines English" },
+    { "id": "04-berners-lee", "title": "Tim Berners-Lee",  "subtitle": "1955– · The Web as Gift" }
+  ]
+}

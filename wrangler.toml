@@ -1,0 +1,19 @@
+name = "walkthrough"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+account_id = "fff33666fc1a1814c66b860ee62f7790"
+
+routes = [
+  { pattern = "walkthrough.parkins.ai", custom_domain = true }
+]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+
+[[r2_buckets]]
+binding = "WALKTHROUGHS"
+bucket_name = "parkins-ai-walkthroughs"

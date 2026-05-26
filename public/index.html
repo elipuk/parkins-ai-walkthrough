@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">Walkthrough</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #0a0a0f;
+  --surface: #161625;
+  --accent: #00fff2;
+  --text: #e8e8f0;
+  --muted: rgba(232, 232, 240, 0.42);
+  --border: rgba(255, 255, 255, 0.08);
+  --header-h: 52px;
+  --bottom-h: 44px;
+}
+
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--primary); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Header (transparent overlay) ─────────────────────────────────────────── */
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+  display: flex; align-items: center; padding: 0 18px; gap: 14px;
+  background: linear-gradient(to bottom, rgba(10,10,15,0.88) 0%, transparent 100%);
+  z-index: 20; pointer-events: none;
+}
+#header > * { pointer-events: all; }
+
+#map-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); background: rgba(10,10,15,0.6);
+  backdrop-filter: blur(8px); color: var(--text);
+  cursor: pointer; font-size: 1rem; display: flex;
+  align-items: center; justify-content: center;
+  transition: border-color 0.2s, background 0.2s; flex-shrink: 0;
+}
+#map-btn:hover { border-color: var(--accent); background: rgba(0,255,242,0.08); }
+
+#wt-title {
+  flex: 1; font-size: 0.72rem; font-weight: 600; font-family: 'Orbitron', monospace;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+#music-btn {
+  background: rgba(10,10,15,0.6); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); color: var(--muted);
+  padding: 5px 14px; border-radius: 20px; font-size: 0.78rem;
+  cursor: pointer; transition: border-color 0.2s, color 0.2s; flex-shrink: 0;
+}
+#music-btn:hover { border-color: var(--accent); color: var(--text); }
+#music-btn.on { border-color: var(--accent); color: var(--accent); }
+
+/* ── Stage — full viewport, perspective container ──────────────────────────── */
+#stage {
+  position: fixed; inset: 0;
+  perspective: 1400px;
+  overflow: hidden;
+  background-image:
+    linear-gradient(rgba(0,255,242,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,242,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ── Panel views ──────────────────────────────────────────────────────────── */
+.panel-view {
+  position: absolute; inset: 0;
+  display: grid;
+  grid-template-columns: 46% 54%;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  pointer-events: none; opacity: 0;
+}
+/* 3D entrance/exit transforms */
+.panel-view.from-right {
+  transform: translateX(160px) rotateY(-22deg) scale(0.88) translateZ(-80px);
+  opacity: 0;
+}
+.panel-view.from-left {
+  transform: translateX(-160px) rotateY(22deg) scale(0.88) translateZ(-80px);
+  opacity: 0;
+}
+.panel-view.to-left {
+  transform: translateX(-180px) rotateY(22deg) scale(0.85) translateZ(-100px);
+  opacity: 0;
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.4s ease !important;
+}
+.panel-view.to-right {
+  transform: translateX(180px) rotateY(-22deg) scale(0.85) translateZ(-100px);
+  opacity: 0;
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.4s ease !important;
+}
+.panel-view.settling {
+  transition: transform 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.55s ease;
+  transform: translateX(0) rotateY(0) scale(1);
+  opacity: 1;
+}
+.panel-view.active {
+  pointer-events: all; opacity: 1;
+  transform: perspective(1200px) rotateY(-1.5deg);
+  outline: 1px solid rgba(0,255,242,0.06);
+  transition: transform 0.6s ease;
+}
+
+/* ── Left panel — text side ───────────────────────────────────────────────── */
+.panel-left {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  padding: calc(var(--header-h) + 32px) 52px calc(var(--bottom-h) + 32px) 52px;
+  background: var(--primary);
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+  border-right: 1px solid rgba(0,255,242,0.12);
+}
+.panel-left::-webkit-scrollbar { display: none; }
+
+/* Blend edge into image */
+.panel-left::after {
+  content: ''; position: absolute; top: 0; right: -1px; bottom: 0; width: 100px;
+  background: linear-gradient(to right, var(--primary), transparent);
+  pointer-events: none; z-index: 2;
+}
+
+.panel-meta {
+  font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
+  font-family: 'Orbitron', monospace;
+  color: var(--accent); opacity: 0; margin-bottom: 14px;
+  transition: opacity 0.45s ease; transition-delay: 0.3s;
+}
+.panel-view.settling .panel-meta,
+.panel-view.active .panel-meta { opacity: 0.65; }
+
+.panel-section-lbl {
+  font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: 'Orbitron', monospace;
+  color: var(--muted); margin-bottom: 6px; opacity: 0;
+  transition: opacity 0.4s ease; transition-delay: 0.25s;
+}
+.panel-view.settling .panel-section-lbl,
+.panel-view.active .panel-section-lbl { opacity: 1; }
+
+.panel-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(22px, 3.5vw, 46px); font-weight: 700; line-height: 1.15;
+  color: var(--text); margin-bottom: 10px;
+  text-shadow: 0 0 18px rgba(0,255,242,0.55), 0 0 36px rgba(0,255,242,0.18);
+  opacity: 0; transform: translateY(14px);
+  transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.45s;
+}
+.panel-view.settling .panel-title,
+.panel-view.active .panel-title { opacity: 1; transform: translateY(0); }
+
+.panel-subtitle {
+  font-size: 0.9rem; color: var(--accent); opacity: 0; font-weight: 400;
+  letter-spacing: 0.02em; margin-bottom: 30px;
+  transform: translateY(8px);
+  transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.62s;
+}
+.panel-view.settling .panel-subtitle,
+.panel-view.active .panel-subtitle { opacity: 0.75; transform: translateY(0); }
+
+.panel-text { flex: 1; font-size: 1.06rem; line-height: 1.82; max-width: 580px; margin-bottom: 28px; }
+
+.sentence {
+  opacity: 0; display: inline;
+  transition: opacity 0.55s ease;
+}
+.sentence.visible { opacity: 0.82; }
+
+.panel-footer {
+  display: flex; align-items: center; gap: 12px;
+  padding-top: 8px; flex-shrink: 0;
+  opacity: 0; transition: opacity 0.4s ease; transition-delay: 1.2s;
+}
+.panel-view.settling .panel-footer,
+.panel-view.active .panel-footer { opacity: 1; }
+
+.btn-readmore {
+  padding: 9px 22px; background: transparent;
+  border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 4px; cursor: pointer; font-size: 0.88rem; font-weight: 500;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 12px rgba(0,255,242,0.15);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.btn-readmore:hover { background: var(--accent); color: var(--primary); box-shadow: 0 0 20px rgba(0,255,242,0.4); }
+.spacer { flex: 1; }
+
+.btn-nav {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text); cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-nav:hover { border-color: var(--accent); background: rgba(0,255,242,0.06); }
+.btn-nav:disabled { opacity: 0.2; cursor: not-allowed; pointer-events: none; }
+
+/* ── Right panel — image side ─────────────────────────────────────────────── */
+.panel-right {
+  position: relative; overflow: hidden;
+  background: #080810;
+}
+
+.panel-img-wrap {
+  position: absolute; inset: 0;
+}
+.panel-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0;
+  transition: opacity 1s ease 0.4s;
+  display: block;
+}
+.panel-view.settling .panel-img-wrap img,
+.panel-view.active .panel-img-wrap img { opacity: 1; }
+
+/* Left-side gradient blending into text panel */
+.panel-right::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; bottom: 0; width: 180px;
+  background: linear-gradient(to right, var(--primary) 20%, transparent 100%);
+  z-index: 2; pointer-events: none;
+}
+
+.panel-placeholder {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.panel-initials {
+  font-size: clamp(80px, 13vw, 160px); font-weight: 800;
+  font-family: Georgia, serif; color: rgba(255,255,255,0.04);
+  letter-spacing: -0.02em; user-select: none;
+}
+
+/* ── Bottom bar — narration progress ─────────────────────────────────────── */
+#bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--bottom-h); z-index: 22;
+  background: linear-gradient(to top, rgba(10,10,15,0.9) 0%, transparent 100%);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  pointer-events: none;
+}
+#nar-track {
+  height: 3px; background: rgba(255,255,255,0.06);
+  position: relative; overflow: hidden; flex-shrink: 0;
+}
+#nar-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--accent); width: 0%;
+  box-shadow: 0 0 8px rgba(0,255,242,0.6);
+  transition: width 0.4s linear;
+}
+#bottom-inner {
+  height: calc(var(--bottom-h) - 2px);
+  display: flex; align-items: center; padding: 0 18px;
+  pointer-events: all;
+}
+#nar-label {
+  font-size: 0.7rem; color: var(--muted); letter-spacing: 0.06em; flex: 1;
+}
+
+/* ── Continue button ─────────────────────────────────────────────────────── */
+#continue-btn {
+  position: fixed; bottom: calc(var(--bottom-h) + 16px); left: 50%;
+  transform: translateX(-50%);
+  padding: 11px 34px;
+  border: 1px solid rgba(0, 255, 242, 0.45);
+  background: rgba(10, 10, 15, 0.75); backdrop-filter: blur(10px);
+  color: var(--accent); border-radius: 4px; font-size: 0.88rem;
+  font-family: 'Orbitron', monospace;
+  font-weight: 500; letter-spacing: 0.06em; cursor: pointer;
+  opacity: 0; pointer-events: none;
+  box-shadow: 0 0 12px rgba(0,255,242,0.15);
+  transition: opacity 0.5s ease, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  z-index: 25;
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+#continue-btn.visible { opacity: 1; pointer-events: all; }
+#continue-btn:hover {
+  background: rgba(0, 255, 242, 0.12); border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(0,255,242,0.4);
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(0,255,242,0.15), 0 0 0 0 rgba(0, 255, 242, 0.25); }
+  50%       { box-shadow: 0 0 12px rgba(0,255,242,0.15), 0 0 0 10px rgba(0, 255, 242, 0); }
+}
+
+/* ── Sidebar (floating overlay) ─────────────────────────────────────────── */
+#sidebar-back {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(0,0,0,0.45);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+#sidebar-back.open { opacity: 1; pointer-events: all; }
+
+#sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 300px;
+  z-index: 50; background: rgba(10, 10, 15, 0.96);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+#sidebar.open { transform: translateX(0); }
+
+#sidebar-head {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+#sidebar-wt-title {
+  flex: 1; font-size: 0.78rem; font-weight: 600; font-family: 'Orbitron', monospace;
+  color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#sidebar-close {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.2s, color 0.2s;
+}
+#sidebar-close:hover { border-color: var(--accent); color: var(--text); }
+
+#nav-list { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 16px; }
+#nav-list::-webkit-scrollbar { width: 3px; }
+#nav-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.section-heading {
+  padding: 18px 20px 8px;
+  font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+
+.nav-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 20px; cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.nav-item:hover { background: rgba(255,255,255,0.03); }
+.nav-item.active { border-left-color: var(--accent); background: rgba(255,255,255,0.04); }
+.nav-num { font-size: 0.65rem; font-family: 'Orbitron', monospace; color: var(--muted); padding-top: 3px; flex-shrink: 0; min-width: 20px; }
+.nav-title-wrap .nav-title { font-size: 0.88rem; line-height: 1.35; color: var(--text); }
+.nav-item.active .nav-title { color: var(--accent); }
+.nav-title-wrap .nav-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+
+/* ── Article drawer ─────────────────────────────────────────────────────── */
+#drawer { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+#drawer-back {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.55); opacity: 0; transition: opacity 0.3s;
+}
+#drawer-sheet {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 88vh;
+  background: var(--surface); border-top: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  display: flex; flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+#drawer.open { pointer-events: all; }
+#drawer.open #drawer-back { opacity: 1; }
+#drawer.open #drawer-sheet { transform: translateY(0); }
+
+#drawer-handle {
+  width: 36px; height: 4px; background: var(--border);
+  border-radius: 2px; margin: 12px auto 0; flex-shrink: 0;
+}
+#drawer-head {
+  padding: 14px 28px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+}
+#drawer-title { flex: 1; font-family: Georgia, serif; font-size: 1.1rem; font-weight: 600; }
+#drawer-close {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text); cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.2s;
+}
+#drawer-close:hover { border-color: var(--accent); }
+#drawer-scroll { flex: 1; overflow-y: auto; padding: 28px 32px 40px; }
+#drawer-scroll::-webkit-scrollbar { width: 6px; }
+#drawer-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+#drawer-article { max-width: 700px; margin: 0 auto; font-size: 1rem; line-height: 1.82; color: rgba(232,232,240,0.82); }
+#drawer-article h1 { font-family: Georgia, serif; font-size: 1.75rem; font-weight: 700; color: var(--text); line-height: 1.2; margin: 0 0 20px; }
+#drawer-article h2 { font-family: Georgia, serif; font-size: 1.2rem; font-weight: 600; color: var(--text); margin: 28px 0 10px; }
+#drawer-article h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 20px 0 8px; }
+#drawer-article p { margin-bottom: 1.1em; }
+#drawer-article strong { color: var(--text); font-weight: 600; }
+#drawer-article em { font-style: italic; opacity: 0.92; }
+#drawer-article code { font-family: monospace; font-size: 0.9em; opacity: 0.8; }
+#drawer-article ul, #drawer-article ol { padding-left: 1.4em; margin-bottom: 1.1em; }
+#drawer-article li { margin-bottom: 0.35em; }
+#drawer-article hr { border: none; border-top: 1px solid var(--border); margin: 1.8em 0; }
+#drawer-article blockquote {
+  border-left: 3px solid var(--accent); padding-left: 1em;
+  margin: 1.2em 0; color: rgba(232,232,240,0.6); font-style: italic;
+}
+
+/* ── Loading & error ────────────────────────────────────────────────────── */
+#loading {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+  background: var(--primary); z-index: 100; transition: opacity 0.4s;
+}
+#loading.gone { opacity: 0; pointer-events: none; }
+.spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-lbl { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+#error-view { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px; text-align: center; }
+#error-view.show { display: flex; }
+#error-view h2 { font-family: Georgia, serif; font-size: 1.5rem; }
+#error-view p { color: var(--muted); font-size: 0.9rem; max-width: 380px; line-height: 1.6; }
+
+/* ── Menu (root URL) ─────────────────────────────────────────────────────── */
+#menu-view {
+  position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden;
+  background: var(--primary); z-index: 90;
+  display: none; flex-direction: column;
+  padding: 72px 40px 60px;
+}
+#menu-view.show { display: flex; }
+#menu-header-inner { max-width: 900px; margin: 0 auto 52px; }
+#menu-logo {
+  font-family: 'Orbitron', monospace; font-size: 0.65rem;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--accent); opacity: 0.55; margin-bottom: 16px;
+}
+#menu-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(28px, 4vw, 52px); font-weight: 700;
+  color: var(--text); line-height: 1.1;
+  text-shadow: 0 0 24px rgba(0,255,242,0.4);
+}
+#menu-grid {
+  max-width: 900px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+.menu-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden; cursor: pointer;
+  text-decoration: none; color: inherit;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  display: block;
+}
+.menu-card:hover {
+  border-color: var(--accent); transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0,255,242,0.12);
+}
+.menu-card-cover {
+  height: 160px; overflow: hidden; background: #080810;
+  position: relative;
+}
+.menu-card-cover img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  position: relative; z-index: 1;
+}
+.menu-card-cover-ph {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 64px; font-weight: 800; font-family: Georgia, serif;
+  color: rgba(255,255,255,0.05); user-select: none;
+}
+.menu-card-body { padding: 18px 20px 20px; }
+.menu-card-title {
+  font-family: 'Orbitron', monospace; font-size: 0.84rem;
+  font-weight: 600; letter-spacing: 0.04em;
+  color: var(--text); margin-bottom: 8px;
+}
+.menu-card-desc {
+  font-size: 0.82rem; line-height: 1.55;
+  color: var(--muted); margin-bottom: 12px;
+}
+.menu-card-meta {
+  font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
+  font-family: 'Orbitron', monospace; color: var(--accent); opacity: 0.65;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 540px) {
+  #menu-view { padding: 56px 14px 40px; overflow-x: hidden; }
+  #menu-grid { grid-template-columns: 1fr; gap: 14px; }
+}
+@media (max-width: 720px) {
+  .panel-view { grid-template-columns: 1fr; grid-template-rows: 36% 64%; }
+  .panel-left {
+    order: 2; padding: 18px 24px calc(var(--bottom-h) + 24px);
+    overflow-y: auto;
+  }
+  .panel-left::after { display: none; }
+  .panel-right { order: 1; }
+  .panel-right::before { display: none; }
+  .panel-right::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 0; right: 0; height: 60px;
+    background: linear-gradient(to bottom, transparent, var(--primary));
+    z-index: 2;
+  }
+  #sidebar { width: 85vw; max-width: 320px; }
+  #drawer-scroll { padding: 20px 20px 32px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-lbl">Loading</div>
+</div>
+
+<div id="error-view">
+  <h2>Walkthrough not found</h2>
+  <p id="error-msg">This walkthrough could not be loaded.</p>
+</div>
+
+<header id="header">
+  <button id="map-btn" aria-label="Map">⊞</button>
+  <span id="wt-title">Loading…</span>
+  <button id="music-btn" style="display:none">♪ Music</button>
+</header>
+
+<div id="stage"></div>
+
+<div id="bottom-bar">
+  <div id="nar-track"><div id="nar-fill"></div></div>
+  <div id="bottom-inner">
+    <div id="nar-label"></div>
+  </div>
+</div>
+<button id="continue-btn" aria-label="Continue to next panel">Continue ▶</button>
+
+<!-- Sidebar -->
+<div id="sidebar-back"></div>
+<nav id="sidebar" aria-label="Walkthrough panels">
+  <div id="sidebar-head">
+    <div id="sidebar-wt-title">Panels</div>
+    <button id="sidebar-close" aria-label="Close">×</button>
+  </div>
+  <div id="nav-list"></div>
+</nav>
+
+<!-- Article drawer -->
+<div id="drawer" role="dialog" aria-modal="true">
+  <div id="drawer-back"></div>
+  <div id="drawer-sheet">
+    <div id="drawer-handle"></div>
+    <div id="drawer-head">
+      <div id="drawer-title"></div>
+      <button id="drawer-close" aria-label="Close">×</button>
+    </div>
+    <div id="drawer-scroll">
+      <div id="drawer-article"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Menu (root URL) -->
+<div id="menu-view">
+  <div id="menu-header-inner">
+    <div id="menu-logo">Parkins.ai</div>
+    <div id="menu-title">Walkthroughs</div>
+  </div>
+  <div id="menu-grid"></div>
+</div>
+
+<audio id="nar-el" preload="none"></audio>
+<audio id="mus-el" loop preload="none"></audio>
+
+<script>
+'use strict';
+
+// ── Markdown renderer ──────────────────────────────────────────────────────
+function renderMd(md) {
+  const lines = md.split('\n');
+  const out = [];
+  let inUl = false;
+  function closeList() { if (inUl) { out.push('</ul>'); inUl = false; } }
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if      (line.startsWith('### ')) { closeList(); out.push('<h3>' + inl(line.slice(4)) + '</h3>'); continue; }
+    else if (line.startsWith('## '))  { closeList(); out.push('<h2>' + inl(line.slice(3)) + '</h2>'); continue; }
+    else if (line.startsWith('# '))   { closeList(); out.push('<h1>' + inl(line.slice(2)) + '</h1>'); continue; }
+    else if (line.trim() === '---')   { closeList(); out.push('<hr>'); continue; }
+    else if (line.startsWith('> '))   { closeList(); out.push('<blockquote>' + inl(line.slice(2)) + '</blockquote>'); continue; }
+    else if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (!inUl) { out.push('<ul>'); inUl = true; }
+      out.push('<li>' + inl(line.slice(2)) + '</li>');
+      continue;
+    }
+    closeList();
+    if (line.trim() === '') continue;
+    out.push('<p>' + inl(line) + '</p>');
+  }
+  closeList();
+  return out.join('\n');
+}
+
+function inl(t) {
+  return t
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>');
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Sentence splitter ──────────────────────────────────────────────────────
+function splitSentences(text) {
+  const raw = text.match(/[^.!?…]+[.!?…]+\s*/g) || [text];
+  return raw.map(s => s.trimEnd()).filter(Boolean);
+}
+
+// ── Placeholder palettes ───────────────────────────────────────────────────
+const PALETTES = [
+  ['#070d1e', '#0e2244'], ['#140820', '#2d1250'],
+  ['#061a12', '#0e3826'], ['#0c1418', '#172635'],
+  ['#180a07', '#381810'],
+];
+function mkPlaceholder(idx, title) {
+  const [c1, c2] = PALETTES[idx % PALETTES.length];
+  const initials = title.split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+  return { bg: 'linear-gradient(140deg,' + c1 + ' 0%,' + c2 + ' 100%)', initials };
+}
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function applyTheme(t) {
+  if (!t) return;
+  const r = document.documentElement;
+  if (t.primary) r.style.setProperty('--primary', t.primary);
+  if (t.accent)  r.style.setProperty('--accent',  t.accent);
+  if (t.text)    r.style.setProperty('--text',    t.text);
+  if (t.primary) r.style.setProperty('--surface', lighten(t.primary, 12));
+}
+function lighten(hex, a) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+  const n = parseInt(hex, 16);
+  const r = Math.min(255, (n >> 16) + a);
+  const g = Math.min(255, ((n >> 8) & 0xff) + a);
+  const b = Math.min(255, (n & 0xff) + a);
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Section lookup ─────────────────────────────────────────────────────────
+let sectionByPanelId = {};
+function buildSectionIndex() {
+  sectionByPanelId = {};
+  if (!manifest.sections) return;
+  for (const sec of manifest.sections) {
+    for (const pid of (sec.panels || [])) {
+      sectionByPanelId[pid] = sec.title;
+    }
+  }
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let manifest = null, currentIdx = -1, musicOn = false, wid = '';
+let navigating = false;
+const panelCache = {}, articleCache = {};
+
+// ── DOM ────────────────────────────────────────────────────────────────────
+const $loading    = document.getElementById('loading');
+const $errView    = document.getElementById('error-view');
+const $errMsg     = document.getElementById('error-msg');
+const $wtTitle    = document.getElementById('wt-title');
+const $stage      = document.getElementById('stage');
+const $narFill    = document.getElementById('nar-fill');
+const $narLabel   = document.getElementById('nar-label');
+const $continuBtn = document.getElementById('continue-btn');
+const $drawer     = document.getElementById('drawer');
+const $dTitle     = document.getElementById('drawer-title');
+const $dArt       = document.getElementById('drawer-article');
+const $dClose     = document.getElementById('drawer-close');
+const $dBack      = document.getElementById('drawer-back');
+const $musicBtn   = document.getElementById('music-btn');
+const $mapBtn     = document.getElementById('map-btn');
+const $sidebar    = document.getElementById('sidebar');
+const $sbBack     = document.getElementById('sidebar-back');
+const $sbClose    = document.getElementById('sidebar-close');
+const $sbTitle    = document.getElementById('sidebar-wt-title');
+const $navList    = document.getElementById('nav-list');
+const narEl       = document.getElementById('nar-el');
+const musEl       = document.getElementById('mus-el');
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+function openSidebar()  { $sidebar.classList.add('open'); $sbBack.classList.add('open'); }
+function closeSidebar() { $sidebar.classList.remove('open'); $sbBack.classList.remove('open'); }
+
+$mapBtn.addEventListener('click', openSidebar);
+$sbClose.addEventListener('click', closeSidebar);
+$sbBack.addEventListener('click', closeSidebar);
+
+function renderNav() {
+  const panels = manifest.panels;
+  const hasSections = manifest.sections && manifest.sections.length;
+
+  if (hasSections) {
+    let html = '';
+    for (const sec of manifest.sections) {
+      html += '<div class="section-heading">' + esc(sec.title) + '</div>';
+      for (const pid of sec.panels) {
+        const i = panels.findIndex(p => p.id === pid);
+        if (i < 0) continue;
+        const p = panels[i];
+        const active = i === currentIdx ? ' active' : '';
+        const num = String(i + 1).padStart(2, '0');
+        const sub = p.subtitle ? p.subtitle.split('·')[0].trim() : '';
+        html += '<div class="nav-item' + active + '" data-i="' + i + '">' +
+          '<span class="nav-num">' + num + '</span>' +
+          '<div class="nav-title-wrap"><div class="nav-title">' + esc(p.title) + '</div>' +
+          (sub ? '<div class="nav-sub">' + esc(sub) + '</div>' : '') +
+          '</div></div>';
+      }
+    }
+    $navList.innerHTML = html;
+  } else {
+    $navList.innerHTML = panels.map(function(p, i) {
+      const active = i === currentIdx ? ' active' : '';
+      const num = String(i + 1).padStart(2, '0');
+      const sub = p.subtitle ? p.subtitle.split('·')[0].trim() : '';
+      return '<div class="nav-item' + active + '" data-i="' + i + '">' +
+        '<span class="nav-num">' + num + '</span>' +
+        '<div class="nav-title-wrap"><div class="nav-title">' + esc(p.title) + '</div>' +
+        (sub ? '<div class="nav-sub">' + esc(sub) + '</div>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  $navList.querySelectorAll('.nav-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      const i = parseInt(el.dataset.i, 10);
+      closeSidebar();
+      if (i !== currentIdx) goToPanel(i);
+    });
+  });
+}
+
+// ── Load panel data ────────────────────────────────────────────────────────
+async function loadPanel(i) {
+  if (panelCache[i]) return panelCache[i];
+  try {
+    const res = await fetch('/api/walkthroughs/' + wid + '/panels/' + manifest.panels[i].id);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    panelCache[i] = await res.json();
+  } catch(e) {
+    panelCache[i] = manifest.panels[i];
+  }
+  return panelCache[i];
+}
+
+// ── Build panel DOM ────────────────────────────────────────────────────────
+function buildPanel(i, data) {
+  const ph = mkPlaceholder(i, data.title);
+  const total = manifest.panels.length;
+  const panelId = manifest.panels[i].id;
+  const num = String(i + 1).padStart(2, '0');
+  const sectionLbl = sectionByPanelId[panelId] || '';
+  const sentences = splitSentences(data.body || '');
+
+  const el = document.createElement('div');
+  el.className = 'panel-view';
+
+  const sentenceHtml = sentences.map(function(s, si) {
+    return '<span class="sentence" data-si="' + si + '">' + esc(s) + ' </span>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="panel-left">' +
+      (sectionLbl ? '<div class="panel-section-lbl">' + esc(sectionLbl) + '</div>' : '') +
+      '<div class="panel-meta">Panel ' + num + ' of ' + total + '</div>' +
+      '<h1 class="panel-title">' + esc(data.title) + '</h1>' +
+      '<div class="panel-subtitle">' + esc(data.subtitle || '') + '</div>' +
+      '<div class="panel-text">' + sentenceHtml + '</div>' +
+      '<div class="panel-footer">' +
+        '<button class="btn-readmore">Read more</button>' +
+        '<div class="spacer"></div>' +
+        '<button class="btn-nav btn-prev"' + (i === 0 ? ' disabled' : '') + '>←</button>' +
+        '<button class="btn-nav btn-next"' + (i === total - 1 ? ' disabled' : '') + '>→</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="panel-right" style="background:' + ph.bg + '">' +
+      '<div class="panel-img-wrap">' +
+        '<div class="panel-placeholder"><div class="panel-initials">' + esc(ph.initials) + '</div></div>' +
+      '</div>' +
+    '</div>';
+
+  // Load image
+  if (data.image) {
+    const img = new Image();
+    const wrap = el.querySelector('.panel-img-wrap');
+    img.onload = function() { wrap.insertBefore(img, wrap.firstChild); };
+    img.src = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + data.image;
+    img.alt = data.title;
+  }
+
+  el.querySelector('.btn-readmore').addEventListener('click', function() { openArticle(i, data.title); });
+  el.querySelector('.btn-prev').addEventListener('click', function() { goToPanel(currentIdx - 1); });
+  el.querySelector('.btn-next').addEventListener('click', function() { goToPanel(currentIdx + 1); });
+
+  return el;
+}
+
+// ── Narration & text sync ──────────────────────────────────────────────────
+let narTimeTimer = null;
+
+function stopNarration() {
+  narEl.pause();
+  narEl.ontimeupdate = null;
+  narEl.onended = null;
+  narEl.onloadedmetadata = null;
+  if (narTimeTimer) { clearInterval(narTimeTimer); narTimeTimer = null; }
+  $narFill.style.transition = 'none';
+  $narFill.style.width = '0%';
+  $narLabel.textContent = '';
+  hideContinue();
+}
+
+function showContinue() {
+  $continuBtn.classList.add('visible');
+}
+function hideContinue() {
+  $continuBtn.classList.remove('visible');
+}
+
+function revealSentences(panelView, fraction) {
+  const sents = panelView.querySelectorAll('.sentence');
+  const n = sents.length;
+  sents.forEach(function(s, i) {
+    if (fraction >= i / n) s.classList.add('visible');
+  });
+}
+
+function startTextStagger(panelView) {
+  const sents = panelView.querySelectorAll('.sentence');
+  sents.forEach(function(s, i) {
+    setTimeout(function() { s.classList.add('visible'); }, 900 + i * 420);
+  });
+  // Show continue after last sentence + 2s
+  const totalDelay = 900 + sents.length * 420 + 2000;
+  setTimeout(function() {
+    if ($stage.contains(panelView) && panelView.classList.contains('active')) {
+      showContinue();
+    }
+  }, totalDelay);
+}
+
+function playNarration(panelView, i, data) {
+  stopNarration();
+  $narLabel.textContent = data.title || '';
+
+  if (!data.narration) {
+    startTextStagger(panelView);
+    return;
+  }
+
+  narEl.src = '/api/walkthroughs/' + wid + '/asset/' + manifest.panels[i].id + '/' + data.narration;
+
+  function syncProgress() {
+    if (!narEl.duration) return;
+    const pct = narEl.currentTime / narEl.duration;
+    $narFill.style.transition = 'width 0.35s linear';
+    $narFill.style.width = (pct * 100) + '%';
+    revealSentences(panelView, pct);
+  }
+
+  narEl.onended = function() {
+    $narFill.style.transition = 'width 0.4s ease';
+    $narFill.style.width = '100%';
+    revealSentences(panelView, 1);
+    setTimeout(showContinue, 600);
+  };
+
+  narEl.ontimeupdate = syncProgress;
+
+  // If duration known from panel data, show sentences immediately at t=0
+  if (data.narration_duration) {
+    narEl.onloadedmetadata = null;
+    narEl.play().catch(function() {
+      // Autoplay blocked: fall back to stagger
+      narEl.ontimeupdate = null;
+      startTextStagger(panelView);
+    });
+  } else {
+    narEl.onloadedmetadata = function() {
+      narEl.play().catch(function() {
+        narEl.ontimeupdate = null;
+        startTextStagger(panelView);
+      });
+    };
+  }
+}
+
+// ── Navigate ───────────────────────────────────────────────────────────────
+async function goToPanel(i) {
+  if (!manifest || i < 0 || i >= manifest.panels.length || navigating) return;
+  navigating = true;
+  hideContinue();
+
+  const forward = i > currentIdx;
+  const data = await loadPanel(i);
+  const panelView = buildPanel(i, data);
+
+  // Set initial (off-screen) state before appending
+  panelView.classList.add(forward ? 'from-right' : 'from-left');
+  $stage.appendChild(panelView);
+
+  // Animate out the current panel
+  const prev = $stage.querySelector('.panel-view.active');
+  if (prev) {
+    prev.classList.remove('active');
+    prev.classList.add(forward ? 'to-left' : 'to-right');
+    setTimeout(function() { prev.remove(); }, 550);
+  }
+
+  // Force reflow then animate in
+  panelView.offsetWidth;
+  panelView.classList.remove('from-right', 'from-left');
+  panelView.classList.add('settling');
+
+  // After the settling transition, mark active for ongoing state
+  setTimeout(function() {
+    panelView.classList.remove('settling');
+    panelView.classList.add('active');
+    navigating = false;
+  }, 700);
+
+  currentIdx = i;
+  renderNav();
+  playNarration(panelView, i, data);
+
+  // Prefetch neighbours
+  if (i + 1 < manifest.panels.length) loadPanel(i + 1).catch(function(){});
+  if (i > 0) loadPanel(i - 1).catch(function(){});
+}
+
+// ── Continue button ────────────────────────────────────────────────────────
+$continuBtn.addEventListener('click', function() {
+  hideContinue();
+  if (currentIdx + 1 < manifest.panels.length) {
+    goToPanel(currentIdx + 1);
+  }
+});
+
+// ── Article drawer ─────────────────────────────────────────────────────────
+async function openArticle(i, title) {
+  $dTitle.textContent = title;
+  $dArt.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px 0">Loading…</p>';
+  $drawer.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  if (articleCache[i]) { $dArt.innerHTML = renderMd(articleCache[i]); return; }
+
+  try {
+    const res = await fetch('/api/walkthroughs/' + wid + '/article/' + manifest.panels[i].id);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    articleCache[i] = text;
+    $dArt.innerHTML = renderMd(text);
+  } catch(e) {
+    $dArt.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px 0">Article not available.</p>';
+  }
+}
+
+function closeDrawer() { $drawer.classList.remove('open'); document.body.style.overflow = ''; }
+$dClose.addEventListener('click', closeDrawer);
+$dBack.addEventListener('click', closeDrawer);
+
+// ── Music ──────────────────────────────────────────────────────────────────
+function setupMusic() {
+  if (!manifest.music) return;
+  $musicBtn.style.display = '';
+  musEl.src = '/api/walkthroughs/' + wid + '/music';
+  musEl.volume = 0.12;
+  $musicBtn.addEventListener('click', function() {
+    if (musicOn) {
+      musEl.pause(); musicOn = false;
+      $musicBtn.textContent = '♪ Music'; $musicBtn.classList.remove('on');
+    } else {
+      musEl.play().then(function() {
+        musicOn = true; $musicBtn.textContent = '♪ On'; $musicBtn.classList.add('on');
+      }).catch(function(){});
+    }
+  });
+}
+
+// ── Keyboard ───────────────────────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  if ($drawer.classList.contains('open')) { if (e.key === 'Escape') closeDrawer(); return; }
+  if ($sidebar.classList.contains('open')) { if (e.key === 'Escape') closeSidebar(); return; }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+    e.preventDefault();
+    hideContinue();
+    goToPanel(currentIdx + 1);
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    hideContinue();
+    goToPanel(currentIdx - 1);
+  }
+  if (e.key === 'Escape') closeSidebar();
+  if (e.key === 'm' || e.key === 'M') $musicBtn.click();
+});
+
+// ── Menu (root URL) ────────────────────────────────────────────────────────
+const $menuView = document.getElementById('menu-view');
+const $menuGrid = document.getElementById('menu-grid');
+
+async function showMenu() {
+  document.title = 'Walkthroughs';
+  try {
+    const res = await fetch('/api/walkthroughs');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const walkthroughs = await res.json();
+    $menuGrid.innerHTML = walkthroughs.length ? walkthroughs.map(function(wt) {
+      const initials = wt.title.split(/\s+/).map(function(w) { return w[0] || ''; }).join('').slice(0, 2).toUpperCase();
+      return '<a class="menu-card" href="/' + esc(wt.id) + '">' +
+        '<div class="menu-card-cover">' +
+          '<div class="menu-card-cover-ph">' + esc(initials) + '</div>' +
+          '<img src="/api/walkthroughs/' + esc(wt.id) + '/cover" alt="" ' +
+            'onerror="this.style.display=\'none\'" loading="lazy">' +
+        '</div>' +
+        '<div class="menu-card-body">' +
+          '<div class="menu-card-title">' + esc(wt.title) + '</div>' +
+          (wt.description ? '<div class="menu-card-desc">' + esc(wt.description) + '</div>' : '') +
+          '<div class="menu-card-meta">' + wt.panels + ' panel' + (wt.panels !== 1 ? 's' : '') + '</div>' +
+        '</div>' +
+      '</a>';
+    }).join('') : '<p style="color:var(--muted);font-size:0.9rem">No walkthroughs available yet.</p>';
+    $menuView.classList.add('show');
+  } catch(e) {
+    showError('Could not load walkthroughs.');
+  }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function showError(msg) {
+  $loading.classList.add('gone');
+  $errMsg.textContent = msg;
+  $errView.classList.add('show');
+}
+
+async function init() {
+  wid = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  if (!wid) {
+    $loading.classList.add('gone');
+    await showMenu();
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/walkthroughs/' + wid);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    manifest = await res.json();
+  } catch(e) {
+    showError('Could not load walkthrough "' + wid + '".');
+    return;
+  }
+
+  document.title = manifest.title;
+  $wtTitle.textContent = manifest.title;
+  $sbTitle.textContent = manifest.title;
+  applyTheme(manifest.theme);
+  buildSectionIndex();
+  renderNav();
+  setupMusic();
+  await goToPanel(0);
+  $loading.classList.add('gone');
+}
+
+init().catch(function(e) {
+  console.error(e);
+  showError('An unexpected error occurred. Check the browser console.');
+});
+</script>
+</body>
+</html>
