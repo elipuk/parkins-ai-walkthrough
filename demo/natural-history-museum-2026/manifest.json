@@ -1,0 +1,137 @@
+{
+  "id": "natural-history-museum-2026",
+  "title": "The Natural History Museum",
+  "subtitle": "An evening among the bones, the beasts, and the year's best wildlife",
+  "description": "Graham and Charlotte's evening at the Natural History Museum, 29 May 2026 — Wildlife Photographer of the Year and the dinosaur halls. A visit Charlotte organised. Eli's scrapbook.",
+  "theme": {
+    "primary": "#0a0a0f",
+    "accent": "#ffae00",
+    "text": "#e8e8f0"
+  },
+  "sections": [
+    {
+      "title": "The Visit",
+      "panels": ["01-on-our-way", "02-arrival", "03-hope", "04-first-choice", "05-a-monks-life", "06-flying-rodent", "07-orphan-of-the-road", "08-celestial-spores", "09-shadow-hunter", "10-under-ultraviolet", "11-the-machine-behind", "12-tiny-worlds", "13-leap-of-faith", "14-morning-constitutional", "15-wrong-turn", "16-look-at-me", "17-breeding-event", "18-smell-them-first"]
+    },
+    {
+      "title": "Deep Time",
+      "panels": ["20-out-of-the-dark", "21-tamed-it"]
+    },
+    {
+      "title": "Fini",
+      "panels": ["22-fini", "23-the-building-itself"]
+    }
+  ],
+  "panels": [
+    {
+      "id": "01-on-our-way",
+      "title": "On Our Way",
+      "subtitle": "Friday evening, heading into town"
+    },
+    {
+      "id": "02-arrival",
+      "title": "Arrival",
+      "subtitle": "Cromwell Road, the Waterhouse facade"
+    },
+    {
+      "id": "03-hope",
+      "title": "Hope",
+      "subtitle": "Hintze Hall, the blue whale mid-dive"
+    },
+    {
+      "id": "04-first-choice",
+      "title": "What Would Be Your 1st Choice",
+      "subtitle": "The Lates board, and a question for Eli"
+    },
+    {
+      "id": "05-a-monks-life",
+      "title": "A Monk's Life",
+      "subtitle": "Greg Lecoeur · Highly Commended · WPY"
+    },
+    {
+      "id": "06-flying-rodent",
+      "title": "Flying Rodent",
+      "subtitle": "Josef Stefan · People's Choice · WPY"
+    },
+    {
+      "id": "07-orphan-of-the-road",
+      "title": "Orphan of the Road",
+      "subtitle": "Fernando Faciole · Impact Award · WPY"
+    },
+    {
+      "id": "08-celestial-spores",
+      "title": "Celestial Spores",
+      "subtitle": "Juan Cuetos · Highly Commended · WPY"
+    },
+    {
+      "id": "09-shadow-hunter",
+      "title": "Shadow Hunter",
+      "subtitle": "Philipp Egger · Winner, Animal Portraits · WPY"
+    },
+    {
+      "id": "10-under-ultraviolet",
+      "title": "Under Ultraviolet",
+      "subtitle": "Two more from the fluorescence wall"
+    },
+    {
+      "id": "11-the-machine-behind",
+      "title": "The Machine Behind",
+      "subtitle": "Long-horned beetle, mossy bark, an orange excavator out of focus"
+    },
+    {
+      "id": "12-tiny-worlds",
+      "title": "Slime Family Portrait",
+      "subtitle": "Kutub Uddin · Highly Commended, Natural Artistry · WPY"
+    },
+    {
+      "id": "13-leap-of-faith",
+      "title": "A Leap of Faith",
+      "subtitle": "Emperor penguin chicks at a 15m ice cliff"
+    },
+    {
+      "id": "14-morning-constitutional",
+      "title": "Morning Constitutional",
+      "subtitle": "A backlit bird, wings out, against a misty sun"
+    },
+    {
+      "id": "15-wrong-turn",
+      "title": "Wrong Turn",
+      "subtitle": "A sloth, a fence post, and the missing forest"
+    },
+    {
+      "id": "16-look-at-me",
+      "title": "Hey Look at Me, I Can Fly",
+      "subtitle": "Bats out of the cave, wings fully open"
+    },
+    {
+      "id": "17-breeding-event",
+      "title": "Breeding Event",
+      "subtitle": "Or, per Charlotte, something a bit less polite"
+    },
+    {
+      "id": "18-smell-them-first",
+      "title": "You Can Smell Them Before You See Them",
+      "subtitle": "Ibex on a misty ridge at golden hour"
+    },
+    {
+      "id": "20-out-of-the-dark",
+      "title": "Out of the Dark",
+      "subtitle": "Plesiosaur skull, lit blue, visitors as shadows"
+    },
+    {
+      "id": "21-tamed-it",
+      "title": "I Think I Tamed It in the End",
+      "subtitle": "Graham and Charlotte, under a tyrant lizard"
+    },
+    {
+      "id": "22-fini",
+      "title": "Fini",
+      "subtitle": "Graham and Charlotte under Darwin, last frame of the day"
+    },
+    {
+      "id": "23-the-building-itself",
+      "title": "The Building Itself",
+      "subtitle": "Out through the arches"
+    }
+  ]
+}

@@ -4,9 +4,8 @@ compatibility_date = "2024-09-23"
 
 account_id = "fff33666fc1a1814c66b860ee62f7790"
 
-routes = [
-  { pattern = "walkthrough.parkins.ai", custom_domain = true }
-]
+# Route lives under [env.production], not at the top level — prevents it being
+# inherited by [env.beta]. Deploy with: wrangler deploy --env production | --env beta
 
 [assets]
 directory = "./public"
@@ -15,5 +14,37 @@ run_worker_first = true
 html_handling = "none"
 
 [[r2_buckets]]
+binding = "WALKTHROUGHS"
+bucket_name = "parkins-ai-walkthroughs"
+
+# ── Production ─────────────────────────────────────────────────────────────
+[env.production]
+name = "walkthrough"
+routes = [
+  { pattern = "walkthrough.parkins.ai", custom_domain = true }
+]
+
+[env.production.assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+
+[[env.production.r2_buckets]]
+binding = "WALKTHROUGHS"
+bucket_name = "parkins-ai-walkthroughs"
+
+# ── Beta (workers.dev) ──────────────────────────────────────────────────────
+[env.beta]
+name = "walkthrough-beta"
+workers_dev = true
+
+[env.beta.assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+
+[[env.beta.r2_buckets]]
 binding = "WALKTHROUGHS"
 bucket_name = "parkins-ai-walkthroughs"

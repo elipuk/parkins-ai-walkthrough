@@ -6,6 +6,12 @@ export default {
       return handleAPI(request, env, url);
     }
 
+    // Static assets that must not be rewritten to index.html
+    const STATIC = new Set(['/sw.js', '/manifest.json', '/icon.svg']);
+    if (STATIC.has(url.pathname)) {
+      return env.ASSETS.fetch(request);
+    }
+
     // Serve SPA index.html for all non-API routes
     const spaReq = new Request(new URL('/index.html', url.origin), {
       method: 'GET',

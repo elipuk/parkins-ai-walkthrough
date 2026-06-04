@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title id="page-title">Walkthrough</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -70,143 +75,47 @@ html, body {
   background-size: 60px 60px;
 }
 
-/* ── Panel views ──────────────────────────────────────────────────────────── */
+/* ── Panel views — stacked layout (image top ~62%, text bottom) ───────────── */
 .panel-view {
   position: absolute; inset: 0;
-  display: grid;
-  grid-template-columns: 46% 54%;
+  display: flex; flex-direction: column;
   transform-origin: center center;
   will-change: transform, opacity;
   pointer-events: none; opacity: 0;
 }
-/* 3D entrance/exit transforms */
 .panel-view.from-right {
-  transform: translateX(160px) rotateY(-22deg) scale(0.88) translateZ(-80px);
+  transform: translateX(100px) scale(0.94);
   opacity: 0;
 }
 .panel-view.from-left {
-  transform: translateX(-160px) rotateY(22deg) scale(0.88) translateZ(-80px);
+  transform: translateX(-100px) scale(0.94);
   opacity: 0;
 }
 .panel-view.to-left {
-  transform: translateX(-180px) rotateY(22deg) scale(0.85) translateZ(-100px);
+  transform: translateX(-120px) scale(0.92);
   opacity: 0;
-  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.4s ease !important;
+  transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease !important;
 }
 .panel-view.to-right {
-  transform: translateX(180px) rotateY(-22deg) scale(0.85) translateZ(-100px);
+  transform: translateX(120px) scale(0.92);
   opacity: 0;
-  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.4s ease !important;
+  transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease !important;
 }
 .panel-view.settling {
-  transition: transform 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.55s ease;
-  transform: translateX(0) rotateY(0) scale(1);
+  transition: transform 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease;
+  transform: translateX(0) scale(1);
   opacity: 1;
 }
 .panel-view.active {
   pointer-events: all; opacity: 1;
-  transform: perspective(1200px) rotateY(-1.5deg);
-  outline: 1px solid rgba(0,255,242,0.06);
-  transition: transform 0.6s ease;
+  transform: none;
 }
 
-/* ── Left panel — text side ───────────────────────────────────────────────── */
-.panel-left {
-  position: relative; z-index: 1;
-  display: flex; flex-direction: column;
-  padding: calc(var(--header-h) + 32px) 52px calc(var(--bottom-h) + 32px) 52px;
-  background: var(--primary);
-  overflow-y: auto; overflow-x: hidden;
-  scrollbar-width: none;
-  border-right: 1px solid rgba(0,255,242,0.12);
-}
-.panel-left::-webkit-scrollbar { display: none; }
-
-/* Blend edge into image */
-.panel-left::after {
-  content: ''; position: absolute; top: 0; right: -1px; bottom: 0; width: 100px;
-  background: linear-gradient(to right, var(--primary), transparent);
-  pointer-events: none; z-index: 2;
-}
-
-.panel-meta {
-  font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
-  font-family: 'Orbitron', monospace;
-  color: var(--accent); opacity: 0; margin-bottom: 14px;
-  transition: opacity 0.45s ease; transition-delay: 0.3s;
-}
-.panel-view.settling .panel-meta,
-.panel-view.active .panel-meta { opacity: 0.65; }
-
-.panel-section-lbl {
-  font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
-  font-family: 'Orbitron', monospace;
-  color: var(--muted); margin-bottom: 6px; opacity: 0;
-  transition: opacity 0.4s ease; transition-delay: 0.25s;
-}
-.panel-view.settling .panel-section-lbl,
-.panel-view.active .panel-section-lbl { opacity: 1; }
-
-.panel-title {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(22px, 3.5vw, 46px); font-weight: 700; line-height: 1.15;
-  color: var(--text); margin-bottom: 10px;
-  text-shadow: 0 0 18px rgba(0,255,242,0.55), 0 0 36px rgba(0,255,242,0.18);
-  opacity: 0; transform: translateY(14px);
-  transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.45s;
-}
-.panel-view.settling .panel-title,
-.panel-view.active .panel-title { opacity: 1; transform: translateY(0); }
-
-.panel-subtitle {
-  font-size: 0.9rem; color: var(--accent); opacity: 0; font-weight: 400;
-  letter-spacing: 0.02em; margin-bottom: 30px;
-  transform: translateY(8px);
-  transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.62s;
-}
-.panel-view.settling .panel-subtitle,
-.panel-view.active .panel-subtitle { opacity: 0.75; transform: translateY(0); }
-
-.panel-text { flex: 1; font-size: 1.06rem; line-height: 1.82; max-width: 580px; margin-bottom: 28px; }
-
-.sentence {
-  opacity: 0; display: inline;
-  transition: opacity 0.55s ease;
-}
-.sentence.visible { opacity: 0.82; }
-
-.panel-footer {
-  display: flex; align-items: center; gap: 12px;
-  padding-top: 8px; flex-shrink: 0;
-  opacity: 0; transition: opacity 0.4s ease; transition-delay: 1.2s;
-}
-.panel-view.settling .panel-footer,
-.panel-view.active .panel-footer { opacity: 1; }
-
-.btn-readmore {
-  padding: 9px 22px; background: transparent;
-  border: 1px solid var(--accent); color: var(--accent);
-  border-radius: 4px; cursor: pointer; font-size: 0.88rem; font-weight: 500;
-  letter-spacing: 0.02em;
-  box-shadow: 0 0 12px rgba(0,255,242,0.15);
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-}
-.btn-readmore:hover { background: var(--accent); color: var(--primary); box-shadow: 0 0 20px rgba(0,255,242,0.4); }
-.spacer { flex: 1; }
-
-.btn-nav {
-  width: 38px; height: 38px; border-radius: 50%;
-  border: 1px solid var(--border); background: transparent;
-  color: var(--text); cursor: pointer; font-size: 1.1rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color 0.2s, background 0.2s;
-}
-.btn-nav:hover { border-color: var(--accent); background: rgba(0,255,242,0.06); }
-.btn-nav:disabled { opacity: 0.2; cursor: not-allowed; pointer-events: none; }
-
-/* ── Right panel — image side ─────────────────────────────────────────────── */
-.panel-right {
-  position: relative; overflow: hidden;
+/* ── Image section (top ~62%) ─────────────────────────────────────────────── */
+.panel-img-section {
+  flex: 0 0 62%;
+  position: relative;
+  overflow: hidden;
   background: #080810;
 }
 
@@ -222,11 +131,11 @@ html, body {
 .panel-view.settling .panel-img-wrap img,
 .panel-view.active .panel-img-wrap img { opacity: 1; }
 
-/* Left-side gradient blending into text panel */
-.panel-right::before {
+/* Gradient blending image into text section below */
+.panel-img-section::after {
   content: ''; position: absolute;
-  top: 0; left: 0; bottom: 0; width: 180px;
-  background: linear-gradient(to right, var(--primary) 20%, transparent 100%);
+  bottom: 0; left: 0; right: 0; height: 110px;
+  background: linear-gradient(to bottom, transparent 0%, var(--primary) 100%);
   z-index: 2; pointer-events: none;
 }
 
@@ -239,6 +148,98 @@ html, body {
   font-family: Georgia, serif; color: rgba(255,255,255,0.04);
   letter-spacing: -0.02em; user-select: none;
 }
+
+/* Meta label overlay on image (top-left, below header) */
+.panel-meta {
+  position: absolute; top: calc(var(--header-h) + 14px); left: 18px;
+  font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
+  font-family: 'Orbitron', monospace;
+  color: var(--accent); opacity: 0;
+  transition: opacity 0.45s ease; transition-delay: 0.3s;
+  z-index: 3;
+}
+.panel-view.settling .panel-meta,
+.panel-view.active .panel-meta { opacity: 0.65; }
+
+.panel-section-lbl {
+  position: absolute; top: calc(var(--header-h) + 36px); left: 18px;
+  font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: 'Orbitron', monospace;
+  color: var(--muted); opacity: 0;
+  transition: opacity 0.4s ease; transition-delay: 0.25s;
+  z-index: 3;
+}
+.panel-view.settling .panel-section-lbl,
+.panel-view.active .panel-section-lbl { opacity: 1; }
+
+/* Nav arrows overlaid on image sides */
+.btn-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(10,10,15,0.6); backdrop-filter: blur(8px);
+  color: var(--text); cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.2s, background 0.2s;
+  z-index: 5;
+}
+.btn-nav:hover { border-color: var(--accent); background: rgba(0,255,242,0.12); }
+.btn-nav:disabled { opacity: 0.15; cursor: not-allowed; pointer-events: none; }
+.btn-prev { left: 14px; }
+.btn-next { right: 14px; }
+
+/* ── Text section (bottom ~38%) ───────────────────────────────────────────── */
+.panel-text-section {
+  flex: 1;
+  position: relative;
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+  padding: 12px 28px calc(var(--bottom-h) + 70px) 28px;
+  background: var(--primary);
+}
+.panel-text-section::-webkit-scrollbar { display: none; }
+
+.panel-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(16px, 2.8vw, 30px); font-weight: 700; line-height: 1.2;
+  color: var(--text); margin-bottom: 6px;
+  text-shadow: 0 0 14px rgba(0,255,242,0.5), 0 0 28px rgba(0,255,242,0.15);
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.45s;
+}
+.panel-view.settling .panel-title,
+.panel-view.active .panel-title { opacity: 1; transform: translateY(0); }
+
+.panel-subtitle {
+  font-size: 0.85rem; color: var(--accent); opacity: 0; font-weight: 400;
+  letter-spacing: 0.02em; margin-bottom: 14px;
+  transform: translateY(6px);
+  transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.58s;
+}
+.panel-view.settling .panel-subtitle,
+.panel-view.active .panel-subtitle { opacity: 0.75; transform: translateY(0); }
+
+.panel-text { font-size: 0.98rem; line-height: 1.78; }
+
+.sentence {
+  opacity: 0; display: inline;
+  transition: opacity 0.55s ease;
+}
+.sentence.visible { opacity: 0.82; }
+
+/* ── Read more — floating bottom-left ────────────────────────────────────── */
+.btn-readmore {
+  position: absolute;
+  bottom: calc(var(--bottom-h) + 14px); left: 18px; z-index: 6;
+  padding: 9px 20px;
+  background: rgba(10,10,15,0.8); backdrop-filter: blur(10px);
+  border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 12px rgba(0,255,242,0.15);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.btn-readmore:hover { background: var(--accent); color: var(--primary); box-shadow: 0 0 20px rgba(0,255,242,0.4); }
 
 /* ── Bottom bar — narration progress ─────────────────────────────────────── */
 #bottom-bar {
@@ -332,6 +333,14 @@ html, body {
   transition: border-color 0.2s, color 0.2s;
 }
 #sidebar-close:hover { border-color: var(--accent); color: var(--text); }
+
+#sidebar-home {
+  display: block; flex-shrink: 0; padding: 12px 20px;
+  font-size: 0.8rem; color: var(--muted); text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: color 0.2s, background 0.15s;
+}
+#sidebar-home:hover { color: var(--accent); background: rgba(255,255,255,0.04); }
 
 #nav-list { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 16px; }
 #nav-list::-webkit-scrollbar { width: 3px; }
@@ -496,25 +505,134 @@ html, body {
 @media (max-width: 540px) {
   #menu-view { padding: 56px 14px 40px; overflow-x: hidden; }
   #menu-grid { grid-template-columns: 1fr; gap: 14px; }
+  .panel-text-section { padding: 10px 18px calc(var(--bottom-h) + 70px) 18px; }
+  .btn-readmore { left: 14px; }
+  .btn-nav { width: 34px; height: 34px; font-size: 0.95rem; }
 }
 @media (max-width: 720px) {
-  .panel-view { grid-template-columns: 1fr; grid-template-rows: 36% 64%; }
-  .panel-left {
-    order: 2; padding: 18px 24px calc(var(--bottom-h) + 24px);
-    overflow-y: auto;
-  }
-  .panel-left::after { display: none; }
-  .panel-right { order: 1; }
-  .panel-right::before { display: none; }
-  .panel-right::after {
-    content: ''; position: absolute;
-    bottom: 0; left: 0; right: 0; height: 60px;
-    background: linear-gradient(to bottom, transparent, var(--primary));
-    z-index: 2;
-  }
   #sidebar { width: 85vw; max-width: 320px; }
   #drawer-scroll { padding: 20px 20px 32px; }
 }
+
+/* ── Desktop / landscape: side-by-side split layout ───────────────────────────
+   The portrait-first stack crops hard when the image box goes short-and-wide on
+   desktop. Above a landscape breakpoint we lay image and text side by side and
+   switch the image to `contain` so the whole picture shows, uncropped. Mobile
+   portrait and cast (a separately baked file) are unaffected. */
+@media (min-width: 900px) and (orientation: landscape) {
+  .panel-view { flex-direction: row; }
+  .panel-img-section { flex: 0 0 56%; height: 100%; }
+  .panel-img-wrap img { object-fit: contain; }
+  /* No text sits below the image in split mode — drop the bottom blend fade. */
+  .panel-img-section::after { display: none; }
+  .panel-text-section {
+    flex: 1;
+    padding: clamp(40px, 9vh, 96px) 52px calc(var(--bottom-h) + 48px) 52px;
+  }
+  .panel-text-section > * { max-width: 620px; }
+  .panel-title { font-size: clamp(26px, 2.6vw, 38px); }
+  .panel-text { font-size: 1.05rem; }
+}
+
+/* ── Image loading / retry states ─────────────────────────────────────────── */
+.panel-placeholder.img-loading .panel-initials {
+  animation: img-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes img-shimmer {
+  0%, 100% { color: rgba(255,255,255,0.04); }
+  50%       { color: rgba(255,255,255,0.11); }
+}
+.panel-placeholder.img-failed::after {
+  content: 'no signal';
+  position: absolute;
+  font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: 'Orbitron', monospace;
+  color: rgba(255,255,255,0.18);
+  bottom: 24px; left: 50%; transform: translateX(-50%);
+}
+
+/* ── Offline / save button ─────────────────────────────────────────────────── */
+#offline-btn {
+  background: rgba(10,10,15,0.6); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); color: var(--muted);
+  padding: 5px 12px; border-radius: 20px; font-size: 0.76rem;
+  cursor: pointer; transition: border-color 0.2s, color 0.2s, opacity 0.2s;
+  flex-shrink: 0; display: none;
+}
+#offline-btn:hover { border-color: var(--accent); color: var(--text); }
+#offline-btn.saving { color: var(--accent); opacity: 0.65; cursor: default; border-color: rgba(0,255,242,0.35); }
+#offline-btn.saved  { border-color: var(--accent); color: var(--accent); cursor: default; }
+
+/* ── Cast button (standard Google Cast launcher) ───────────────────────────── */
+#cast-btn {
+  width: 28px; height: 28px; cursor: pointer; flex-shrink: 0;
+  --connected-color: var(--accent);
+  --disconnected-color: var(--muted);
+  transition: opacity 0.2s;
+}
+#cast-btn:hover { opacity: 0.8; }
+
+/* ── Carousel (multi-image panels) ─────────────────────────────────────────── */
+.carousel-track {
+  position: absolute; inset: 0;
+  overflow: hidden;
+}
+.carousel-track .panel-img-wrap {
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 0;
+}
+.carousel-track .panel-img-wrap.cur {
+  opacity: 1;
+  z-index: 1;
+}
+.carousel-dots {
+  position: absolute; bottom: 14px; left: 0; right: 0;
+  display: flex; justify-content: center; gap: 7px;
+  z-index: 4; pointer-events: none;
+}
+.carousel-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,0.28);
+  transition: background 0.2s, transform 0.2s;
+  cursor: pointer; pointer-events: all;
+}
+.carousel-dot.active { background: var(--accent); transform: scale(1.3); }
+
+/* ── Narration controls ─────────────────────────────────────────────────────── */
+.nar-ctrl {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 1.05rem; padding: 2px 7px;
+  line-height: 1; flex-shrink: 0;
+  transition: color 0.2s;
+}
+.nar-ctrl:hover { color: var(--text); }
+
+/* ── Resume-position prompt ─────────────────────────────────────────────────── */
+#resume-prompt {
+  position: fixed;
+  bottom: calc(var(--bottom-h) + 16px);
+  left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: calc(100vw - 32px);
+  background: rgba(14,14,22,0.93); backdrop-filter: blur(12px);
+  border: 1px solid rgba(0,255,242,0.25);
+  border-radius: 8px; padding: 9px 14px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  z-index: 28; font-size: 0.8rem; color: var(--muted);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+#resume-prompt.visible { opacity: 1; pointer-events: all; }
+#resume-yes, #resume-no {
+  border-radius: 4px; padding: 3px 11px;
+  cursor: pointer; font-size: 0.78rem;
+  background: none; transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+#resume-yes { border: 1px solid var(--accent); color: var(--accent); }
+#resume-no  { border: 1px solid var(--border); color: var(--muted); }
+#resume-yes:hover { background: rgba(0,255,242,0.1); }
+#resume-no:hover  { border-color: rgba(255,255,255,0.3); color: var(--text); }
 </style>
 </head>
 <body>
@@ -532,7 +650,9 @@ html, body {
 <header id="header">
   <button id="map-btn" aria-label="Map">⊞</button>
   <span id="wt-title">Loading…</span>
+  <google-cast-launcher id="cast-btn" style="display:none" aria-label="Cast to TV"></google-cast-launcher>
   <button id="music-btn" style="display:none">♪ Music</button>
+  <button id="offline-btn" aria-label="Save for offline"></button>
 </header>
 
 <div id="stage"></div>
@@ -541,9 +661,17 @@ html, body {
   <div id="nar-track"><div id="nar-fill"></div></div>
   <div id="bottom-inner">
     <div id="nar-label"></div>
+    <button id="nar-pause-btn" class="nar-ctrl" style="display:none" aria-label="Pause narration">⏸</button>
+    <button id="nar-restart-btn" class="nar-ctrl" style="display:none" aria-label="Restart narration">↺</button>
   </div>
 </div>
 <button id="continue-btn" aria-label="Continue to next panel">Continue ▶</button>
+
+<div id="resume-prompt">
+  <span id="resume-msg"></span>
+  <button id="resume-yes">Resume</button>
+  <button id="resume-no">Start over</button>
+</div>
 
 <!-- Sidebar -->
 <div id="sidebar-back"></div>
@@ -552,6 +680,7 @@ html, body {
     <div id="sidebar-wt-title">Panels</div>
     <button id="sidebar-close" aria-label="Close">×</button>
   </div>
+  <a id="sidebar-home" href="/">← All walkthroughs</a>
   <div id="nav-list"></div>
 </nav>
 
@@ -584,6 +713,10 @@ html, body {
 
 <script>
 'use strict';
+
+// Defined first so the async Cast SDK can call it after page load, by which
+// point all our functions are in scope.
+window['__onGCastApiAvailable'] = function(ok) { if (ok) initCastApi(); };
 
 // ── Markdown renderer ──────────────────────────────────────────────────────
 function renderMd(md) {
@@ -675,8 +808,13 @@ function buildSectionIndex() {
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
-let manifest = null, currentIdx = -1, musicOn = false, wid = '';
+let manifest = null, currentIdx = -1, musicOn = false, wid = '', narPaused = false;
 let navigating = false;
+let resumeTarget = 0, resumeDismissTimer = null;
+let drawerOpen = false;
+let castSession = null, castPlayer = null, castCtrl = null;
+let castAvailable = false, castMediaHad = false, castHolding = false;
+let castContinueTimer = null;
 const panelCache = {}, articleCache = {};
 
 // ── DOM ────────────────────────────────────────────────────────────────────
@@ -694,14 +832,22 @@ const $dArt       = document.getElementById('drawer-article');
 const $dClose     = document.getElementById('drawer-close');
 const $dBack      = document.getElementById('drawer-back');
 const $musicBtn   = document.getElementById('music-btn');
+const $castBtn    = document.getElementById('cast-btn');
+const $offlineBtn = document.getElementById('offline-btn');
 const $mapBtn     = document.getElementById('map-btn');
 const $sidebar    = document.getElementById('sidebar');
 const $sbBack     = document.getElementById('sidebar-back');
 const $sbClose    = document.getElementById('sidebar-close');
 const $sbTitle    = document.getElementById('sidebar-wt-title');
 const $navList    = document.getElementById('nav-list');
-const narEl       = document.getElementById('nar-el');
-const musEl       = document.getElementById('mus-el');
+const narEl          = document.getElementById('nar-el');
+const musEl          = document.getElementById('mus-el');
+const $narPauseBtn   = document.getElementById('nar-pause-btn');
+const $narRestartBtn = document.getElementById('nar-restart-btn');
+const $resumePrompt  = document.getElementById('resume-prompt');
+const $resumeMsg     = document.getElementById('resume-msg');
+const $resumeYes     = document.getElementById('resume-yes');
+const $resumeNo      = document.getElementById('resume-no');
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
 function openSidebar()  { $sidebar.classList.add('open'); $sbBack.classList.add('open'); }
@@ -769,6 +915,123 @@ async function loadPanel(i) {
   return panelCache[i];
 }
 
+// ── Service worker & offline ───────────────────────────────────────────────
+// Matches CACHE_NAME in sw.js — must be kept in sync when bumping the SW version.
+const CACHE_NAME = 'walkthrough-v3';
+let offlineState = 'idle'; // idle | saving | saved
+
+function setOfflineState(state) {
+  offlineState = state;
+  if (!$offlineBtn) return;
+  $offlineBtn.className = state;
+  if (state === 'idle') $offlineBtn.textContent = '⬇ Save';
+  if (state === 'saved') $offlineBtn.textContent = '✓ Offline';
+}
+
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    await navigator.serviceWorker.register('/sw.js');
+  } catch(e) {
+    console.warn('SW registration failed:', e);
+    return;
+  }
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    const d = event.data;
+    if (!d || d.type !== 'PRECACHE_PROGRESS') return;
+    if (d.complete) {
+      setOfflineState('saved');
+    } else {
+      if ($offlineBtn) $offlineBtn.textContent = '⋯ ' + d.done + '/' + d.total;
+    }
+  });
+}
+
+async function checkWalkthroughCached(id) {
+  if (!('caches' in window)) return false;
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    return !!(await cache.match('/api/walkthroughs/' + id, { ignoreVary: true }));
+  } catch { return false; }
+}
+
+async function initOfflineBtn(id) {
+  if (!('serviceWorker' in navigator) || !$offlineBtn) return;
+  $offlineBtn.style.display = '';
+  const isCached = await checkWalkthroughCached(id);
+  setOfflineState(isCached ? 'saved' : 'idle');
+
+  $offlineBtn.addEventListener('click', function() {
+    if (offlineState !== 'idle') return;
+    const sw = navigator.serviceWorker.controller;
+    if (!sw) {
+      // SW installed but not yet controlling — prompt user to refresh
+      $offlineBtn.textContent = 'Refresh ↺';
+      setTimeout(function() { setOfflineState('idle'); }, 2000);
+      return;
+    }
+    setOfflineState('saving');
+    $offlineBtn.textContent = '⋯ 0/' + manifest.panels.length;
+    sw.postMessage({ type: 'PRECACHE_WALKTHROUGH', walkthroughId: id, manifest: manifest });
+  });
+}
+
+// ── Image retry with exponential backoff ───────────────────────────────────
+const imgOnlineCallbacks = new Set();
+window.addEventListener('online', function() {
+  Array.from(imgOnlineCallbacks).forEach(function(cb) { cb(); });
+});
+
+function loadImgWithRetry(src, alt, wrap) {
+  const MAX_RETRIES = 4;
+  let retryCount = 0;
+  let backoffId = null;
+  let done = false;
+  const ph = wrap.querySelector('.panel-placeholder');
+
+  if (ph) ph.classList.add('img-loading');
+
+  function cleanup() {
+    done = true;
+    imgOnlineCallbacks.delete(onOnline);
+    if (backoffId) { clearTimeout(backoffId); backoffId = null; }
+  }
+
+  function onOnline() {
+    if (done) return;
+    if (!wrap.isConnected) { cleanup(); return; }
+    if (backoffId) { clearTimeout(backoffId); backoffId = null; }
+    attempt();
+  }
+
+  function attempt() {
+    if (done) { cleanup(); return; }
+    const img = new Image();
+    img.alt = alt;
+    img.onload = function() {
+      if (done) return;
+      cleanup();
+      if (ph) ph.classList.remove('img-loading');
+      if (wrap.isConnected) wrap.insertBefore(img, wrap.firstChild);
+    };
+    img.onerror = function() {
+      if (done || !wrap.isConnected) { cleanup(); return; }
+      retryCount++;
+      if (retryCount >= MAX_RETRIES) {
+        cleanup();
+        if (ph) { ph.classList.remove('img-loading'); ph.classList.add('img-failed'); }
+        return;
+      }
+      const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 16000);
+      backoffId = setTimeout(attempt, delay);
+    };
+    img.src = src;
+  }
+
+  imgOnlineCallbacks.add(onOnline);
+  attempt();
+}
+
 // ── Build panel DOM ────────────────────────────────────────────────────────
 function buildPanel(i, data) {
   const ph = mkPlaceholder(i, data.title);
@@ -778,6 +1041,12 @@ function buildPanel(i, data) {
   const sectionLbl = sectionByPanelId[panelId] || '';
   const sentences = splitSentences(data.body || '');
 
+  // Prefer data.images array; fall back to single data.image for existing panels
+  const imageList = (data.images && data.images.length > 0)
+    ? data.images
+    : (data.image ? [data.image] : []);
+  const isCarousel = imageList.length > 1;
+
   const el = document.createElement('div');
   el.className = 'panel-view';
 
@@ -785,33 +1054,54 @@ function buildPanel(i, data) {
     return '<span class="sentence" data-si="' + si + '">' + esc(s) + ' </span>';
   }).join('');
 
+  const phHtml = '<div class="panel-placeholder"><div class="panel-initials">' + esc(ph.initials) + '</div></div>';
+  let imgContent;
+  if (isCarousel) {
+    imgContent =
+      '<div class="carousel-track">' +
+        imageList.map(function(_, ci) { return '<div class="panel-img-wrap' + (ci === 0 ? ' cur' : '') + '">' + phHtml + '</div>'; }).join('') +
+      '</div>' +
+      '<div class="carousel-dots">' +
+        imageList.map(function(_, ci) {
+          return '<span class="carousel-dot' + (ci === 0 ? ' active' : '') + '" data-ci="' + ci + '"></span>';
+        }).join('') +
+      '</div>';
+  } else {
+    imgContent = '<div class="panel-img-wrap">' + phHtml + '</div>';
+  }
+
   el.innerHTML =
-    '<div class="panel-left">' +
+    '<div class="panel-img-section" style="background:' + ph.bg + '">' +
+      imgContent +
       (sectionLbl ? '<div class="panel-section-lbl">' + esc(sectionLbl) + '</div>' : '') +
       '<div class="panel-meta">Panel ' + num + ' of ' + total + '</div>' +
+      '<button class="btn-nav btn-prev"' + (i === 0 ? ' disabled' : '') + '>←</button>' +
+      '<button class="btn-nav btn-next"' + (i === total - 1 ? ' disabled' : '') + '>→</button>' +
+    '</div>' +
+    '<div class="panel-text-section">' +
       '<h1 class="panel-title">' + esc(data.title) + '</h1>' +
       '<div class="panel-subtitle">' + esc(data.subtitle || '') + '</div>' +
       '<div class="panel-text">' + sentenceHtml + '</div>' +
-      '<div class="panel-footer">' +
-        '<button class="btn-readmore">Read more</button>' +
-        '<div class="spacer"></div>' +
-        '<button class="btn-nav btn-prev"' + (i === 0 ? ' disabled' : '') + '>←</button>' +
-        '<button class="btn-nav btn-next"' + (i === total - 1 ? ' disabled' : '') + '>→</button>' +
-      '</div>' +
     '</div>' +
-    '<div class="panel-right" style="background:' + ph.bg + '">' +
-      '<div class="panel-img-wrap">' +
-        '<div class="panel-placeholder"><div class="panel-initials">' + esc(ph.initials) + '</div></div>' +
-      '</div>' +
-    '</div>';
+    '<button class="btn-readmore">Read more</button>';
 
-  // Load image
-  if (data.image) {
-    const img = new Image();
-    const wrap = el.querySelector('.panel-img-wrap');
-    img.onload = function() { wrap.insertBefore(img, wrap.firstChild); };
-    img.src = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + data.image;
-    img.alt = data.title;
+  // Load images with retry/backoff
+  if (isCarousel) {
+    const wraps = el.querySelectorAll('.carousel-track .panel-img-wrap');
+    imageList.forEach(function(img, ci) {
+      loadImgWithRetry(
+        '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + img,
+        data.title + ' · ' + (ci + 1),
+        wraps[ci]
+      );
+    });
+    initCarousel(el, imageList.length);
+  } else if (imageList.length === 1) {
+    loadImgWithRetry(
+      '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + imageList[0],
+      data.title,
+      el.querySelector('.panel-img-wrap')
+    );
   }
 
   el.querySelector('.btn-readmore').addEventListener('click', function() { openArticle(i, data.title); });
@@ -819,6 +1109,54 @@ function buildPanel(i, data) {
   el.querySelector('.btn-next').addEventListener('click', function() { goToPanel(currentIdx + 1); });
 
   return el;
+}
+
+// ── Carousel ───────────────────────────────────────────────────────────────
+function initCarousel(panelEl, count) {
+  let ci = 0;
+  const wraps = panelEl.querySelectorAll('.carousel-track .panel-img-wrap');
+  const dots  = panelEl.querySelectorAll('.carousel-dot');
+  let autoTimer = null;
+
+  function goCarousel(idx) {
+    ci = ((idx % count) + count) % count;
+    wraps.forEach(function(w, j) { w.classList.toggle('cur', j === ci); });
+    dots.forEach(function(d, j) { d.classList.toggle('active', j === ci); });
+  }
+
+  function stopAuto() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  }
+
+  // Auto-revolve every 5s while this panel is on screen; the first manual
+  // interaction cancels it so auto-advance never fights the viewer.
+  autoTimer = setInterval(function() {
+    if (panelEl.classList.contains('active')) goCarousel(ci + 1);
+  }, 5000);
+
+  dots.forEach(function(dot) {
+    dot.addEventListener('click', function(e) {
+      e.stopPropagation();
+      stopAuto();
+      goCarousel(parseInt(dot.dataset.ci, 10));
+    });
+  });
+
+  // Horizontal swipe to advance carousel; vertical swipe passes through
+  let tx = 0, ty = 0;
+  const imgSec = panelEl.querySelector('.panel-img-section');
+  imgSec.addEventListener('touchstart', function(e) {
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
+  }, { passive: true });
+  imgSec.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - tx;
+    const dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 44) {
+      stopAuto();
+      goCarousel(ci + (dx < 0 ? 1 : -1));
+    }
+  }, { passive: true });
 }
 
 // ── Narration & text sync ──────────────────────────────────────────────────
@@ -830,10 +1168,15 @@ function stopNarration() {
   narEl.onended = null;
   narEl.onloadedmetadata = null;
   if (narTimeTimer) { clearInterval(narTimeTimer); narTimeTimer = null; }
+  if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
   $narFill.style.transition = 'none';
   $narFill.style.width = '0%';
   $narLabel.textContent = '';
   hideContinue();
+  narPaused = false;
+  $narPauseBtn.textContent = '⏸';
+  $narPauseBtn.style.display = 'none';
+  $narRestartBtn.style.display = 'none';
 }
 
 function showContinue() {
@@ -846,9 +1189,24 @@ function hideContinue() {
 function revealSentences(panelView, fraction) {
   const sents = panelView.querySelectorAll('.sentence');
   const n = sents.length;
+  let lastRevealed = null;
   sents.forEach(function(s, i) {
-    if (fraction >= i / n) s.classList.add('visible');
+    if (fraction >= i / n) {
+      s.classList.add('visible');
+      lastRevealed = s;
+    }
   });
+  // Auto-scroll text section to keep latest sentence visible
+  if (lastRevealed) {
+    const textSection = panelView.querySelector('.panel-text-section');
+    if (textSection) {
+      const sBottom = lastRevealed.getBoundingClientRect().bottom;
+      const tBottom = textSection.getBoundingClientRect().bottom;
+      if (sBottom > tBottom - 28) {
+        textSection.scrollTop += sBottom - tBottom + 44;
+      }
+    }
+  }
 }
 
 function startTextStagger(panelView) {
@@ -865,9 +1223,24 @@ function startTextStagger(panelView) {
   }, totalDelay);
 }
 
-function playNarration(panelView, i, data) {
+function playNarration(panelView, i, data, startPaused) {
   stopNarration();
   $narLabel.textContent = data.title || '';
+
+  // When a cast session is active, TV is the audio source — don't play locally.
+  if (castSession) {
+    if (data.narration) {
+      narPaused = false;
+      $narPauseBtn.textContent = '⏸';
+      $narPauseBtn.style.display = '';
+      $narRestartBtn.style.display = '';
+    } else {
+      // No narration → image held on TV; show Continue promptly
+      setTimeout(showContinue, 800);
+    }
+    startTextStagger(panelView);
+    return;
+  }
 
   if (!data.narration) {
     startTextStagger(panelView);
@@ -875,6 +1248,10 @@ function playNarration(panelView, i, data) {
   }
 
   narEl.src = '/api/walkthroughs/' + wid + '/asset/' + manifest.panels[i].id + '/' + data.narration;
+  narPaused = !!startPaused;
+  $narPauseBtn.textContent = startPaused ? '▶' : '⏸';
+  $narPauseBtn.style.display = '';
+  $narRestartBtn.style.display = '';
 
   function syncProgress() {
     if (!narEl.duration) return;
@@ -892,6 +1269,14 @@ function playNarration(panelView, i, data) {
   };
 
   narEl.ontimeupdate = syncProgress;
+
+  // Returning from a cast session: load the audio but stay paused at the start,
+  // text fully revealed, so the viewer can resume on the phone if they want.
+  if (startPaused) {
+    narEl.onloadedmetadata = null;
+    revealSentences(panelView, 1);
+    return;
+  }
 
   // If duration known from panel data, show sentences immediately at t=0
   if (data.narration_duration) {
@@ -946,12 +1331,24 @@ async function goToPanel(i) {
   }, 700);
 
   currentIdx = i;
+  savePosition(i);
   renderNav();
   playNarration(panelView, i, data);
+  if (castSession) castPanel(i, data); // drive TV when casting
 
   // Prefetch neighbours
   if (i + 1 < manifest.panels.length) loadPanel(i + 1).catch(function(){});
   if (i > 0) loadPanel(i - 1).catch(function(){});
+}
+
+// ── Reading-position persistence ──────────────────────────────────────────
+function savePosition(idx) {
+  if (!wid) return;
+  try { localStorage.setItem('wt-pos-' + wid, String(idx)); } catch(e) {}
+}
+
+function getSavedPosition() {
+  try { return parseInt(localStorage.getItem('wt-pos-' + wid) || '0', 10) || 0; } catch(e) { return 0; }
 }
 
 // ── Continue button ────────────────────────────────────────────────────────
@@ -968,6 +1365,7 @@ async function openArticle(i, title) {
   $dArt.innerHTML = '<p style="color:var(--muted);text-align:center;padding:40px 0">Loading…</p>';
   $drawer.classList.add('open');
   document.body.style.overflow = 'hidden';
+  if (!drawerOpen) { drawerOpen = true; history.pushState({ drawer: true }, ''); }
 
   if (articleCache[i]) { $dArt.innerHTML = renderMd(articleCache[i]); return; }
 
@@ -982,9 +1380,17 @@ async function openArticle(i, title) {
   }
 }
 
-function closeDrawer() { $drawer.classList.remove('open'); document.body.style.overflow = ''; }
-$dClose.addEventListener('click', closeDrawer);
-$dBack.addEventListener('click', closeDrawer);
+function closeDrawer() { $drawer.classList.remove('open'); document.body.style.overflow = ''; drawerOpen = false; }
+// User-initiated close walks history back so the entry pushed on open is
+// consumed (popstate then does the visual close). Falls back to a direct
+// close if no drawer history entry is present.
+function dismissDrawer() {
+  if (drawerOpen && history.state && history.state.drawer) { history.back(); }
+  else { closeDrawer(); }
+}
+$dClose.addEventListener('click', dismissDrawer);
+$dBack.addEventListener('click', dismissDrawer);
+window.addEventListener('popstate', function() { if (drawerOpen) closeDrawer(); });
 
 // ── Music ──────────────────────────────────────────────────────────────────
 function setupMusic() {
@@ -1006,7 +1412,7 @@ function setupMusic() {
 
 // ── Keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
-  if ($drawer.classList.contains('open')) { if (e.key === 'Escape') closeDrawer(); return; }
+  if ($drawer.classList.contains('open')) { if (e.key === 'Escape') dismissDrawer(); return; }
   if ($sidebar.classList.contains('open')) { if (e.key === 'Escape') closeSidebar(); return; }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
     e.preventDefault();
@@ -1020,6 +1426,54 @@ document.addEventListener('keydown', function(e) {
   }
   if (e.key === 'Escape') closeSidebar();
   if (e.key === 'm' || e.key === 'M') $musicBtn.click();
+});
+
+// ── Narration controls ─────────────────────────────────────────────────────
+$narPauseBtn.addEventListener('click', function() {
+  if (castCtrl && castPlayer) {
+    castCtrl.playOrPause();
+    // isPaused flips after playOrPause; read it after a tick
+    setTimeout(function() {
+      narPaused = castPlayer.isPaused;
+      $narPauseBtn.textContent = narPaused ? '▶' : '⏸';
+    }, 80);
+    return;
+  }
+  if (narEl.paused) {
+    narEl.play().catch(function(){});
+    narPaused = false;
+    $narPauseBtn.textContent = '⏸';
+  } else {
+    narEl.pause();
+    narPaused = true;
+    $narPauseBtn.textContent = '▶';
+  }
+});
+
+$narRestartBtn.addEventListener('click', function() {
+  const pv = $stage.querySelector('.panel-view.active, .panel-view.settling');
+  function resetSentences() {
+    if (!pv) return;
+    pv.querySelectorAll('.sentence').forEach(function(s) { s.classList.remove('visible'); });
+    const ts = pv.querySelector('.panel-text-section');
+    if (ts) ts.scrollTop = 0;
+  }
+  if (castCtrl && castPlayer) {
+    castPlayer.currentTime = 0;
+    castCtrl.seek();
+    narPaused = false;
+    $narPauseBtn.textContent = '⏸';
+    hideContinue();
+    resetSentences();
+    return;
+  }
+  if (!narEl.src) return;
+  resetSentences();
+  narEl.currentTime = 0;
+  narPaused = false;
+  $narPauseBtn.textContent = '⏸';
+  narEl.play().catch(function(){});
+  hideContinue();
 });
 
 // ── Menu (root URL) ────────────────────────────────────────────────────────
@@ -1053,6 +1507,27 @@ async function showMenu() {
   }
 }
 
+// ── Resume-position prompt ─────────────────────────────────────────────────
+function showResumePrompt(idx) {
+  resumeTarget = idx;
+  $resumeMsg.textContent = 'Resume from panel ' + (idx + 1) + '?';
+  $resumePrompt.classList.add('visible');
+  if (resumeDismissTimer) clearTimeout(resumeDismissTimer);
+  resumeDismissTimer = setTimeout(dismissResume, 8000);
+}
+
+function dismissResume() {
+  $resumePrompt.classList.remove('visible');
+  if (resumeDismissTimer) { clearTimeout(resumeDismissTimer); resumeDismissTimer = null; }
+}
+
+$resumeYes.addEventListener('click', function() {
+  const idx = resumeTarget;
+  dismissResume();
+  goToPanel(idx);
+});
+$resumeNo.addEventListener('click', dismissResume);
+
 // ── Init ───────────────────────────────────────────────────────────────────
 function showError(msg) {
   $loading.classList.add('gone');
@@ -1084,14 +1559,201 @@ async function init() {
   buildSectionIndex();
   renderNav();
   setupMusic();
+  initOfflineBtn(wid); // async, runs in background — don't await
+  const savedPos = getSavedPosition(); // read before goToPanel(0) overwrites it
   await goToPanel(0);
   $loading.classList.add('gone');
+  if (savedPos > 0 && savedPos < manifest.panels.length) {
+    showResumePrompt(savedPos);
+  }
 }
 
+// ── Cast (Chrome, Default Media Receiver CC1AD845) ─────────────────────────
+function initCastApi() {
+  const ctx = cast.framework.CastContext.getInstance();
+  ctx.setOptions({
+    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+  });
+
+  ctx.addEventListener(
+    cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+    function(e) {
+      castAvailable = e.castState !== cast.framework.CastState.NO_DEVICES_AVAILABLE;
+      updateCastBtn();
+    }
+  );
+
+  ctx.addEventListener(
+    cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+    function(e) {
+      var SS = cast.framework.SessionState;
+      if (e.sessionState === SS.SESSION_STARTED || e.sessionState === SS.SESSION_RESUMED) {
+        castSession = ctx.getCurrentSession();
+        castPlayer  = new cast.framework.RemotePlayer();
+        castCtrl    = new cast.framework.RemotePlayerController(castPlayer);
+        castCtrl.addEventListener(
+          cast.framework.RemotePlayerEventType.PLAYER_STATE_CHANGED,
+          function() {
+            if (!castPlayer) return;
+            var st = castPlayer.playerState;
+            if (st === chrome.cast.media.PlayerState.PLAYING) {
+              // Only a narration clip counts as "media had"; the hold image must
+              // not, or its IDLE would be read as a clip-end and re-show Continue.
+              if (!castHolding) castMediaHad = true;
+            } else if (st === chrome.cast.media.PlayerState.IDLE) {
+              if (castHolding) {
+                // DMR drops a still image after its short photo-display interval;
+                // re-assert it so the panel picture stays up until the viewer
+                // advances or disconnects.
+                if (currentIdx >= 0) castHoldImage(currentIdx, panelCache[currentIdx]);
+              } else if (castMediaHad) {
+                // Narration clip ended — mirror local narration-end, then hold.
+                castMediaHad = false;
+                setTimeout(showContinue, 600);
+                if (currentIdx >= 0) castHoldImage(currentIdx, panelCache[currentIdx]);
+              }
+            }
+          }
+        );
+        onCastConnected();
+      } else if (e.sessionState === cast.framework.SessionState.SESSION_ENDED ||
+                 e.sessionState === cast.framework.SessionState.SESSION_START_FAILED) {
+        castSession = null; castPlayer = null; castCtrl = null; castMediaHad = false;
+        onCastDisconnected();
+      }
+    }
+  );
+}
+
+function updateCastBtn() {
+  if (!$castBtn) return;
+  // The <google-cast-launcher> renders the standard Cast icon and reflects
+  // connected/disconnected state itself; we only gate visibility on device
+  // availability so it doesn't show when there's nothing to cast to.
+  $castBtn.style.display = castAvailable ? '' : 'none';
+}
+
+function castPanel(i, data) {
+  if (!castSession) return;
+  var panelId = manifest.panels[i].id;
+
+  // Use pre-baked cast.mp4 when narration exists; otherwise cast the primary image
+  var mediaUrl, contentType;
+  if (data.narration) {
+    mediaUrl    = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/cast.mp4';
+    contentType = 'video/mp4';
+  } else {
+    var imgFile = (data.images && data.images.length > 0) ? data.images[0] : data.image;
+    if (!imgFile) return;
+    mediaUrl    = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + imgFile;
+    contentType = imgFile.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  }
+
+  // Cast receiver needs an absolute URL reachable from the internet
+  var absUrl = new URL(mediaUrl, window.location.origin).href;
+  var mi     = new chrome.cast.media.MediaInfo(absUrl, contentType);
+  var meta   = new chrome.cast.media.GenericMediaMetadata();
+  meta.title    = data.title    || '';
+  meta.subtitle = data.subtitle || '';
+  mi.metadata   = meta;
+
+  var req      = new chrome.cast.media.LoadRequest(mi);
+  req.autoplay = true;
+  castMediaHad = false;
+  castHolding  = false;
+
+  // The baked cast.mp4 holds the still image for minutes after the audio ends
+  // (no video→photo switch, no flicker), so the clip no longer ends at narration
+  // end — show Continue on a timer instead of waiting for the player to go IDLE.
+  if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
+  if (data.narration) {
+    var contMs = (Number(data.narration_duration) || 30) * 1000 + 800;
+    castContinueTimer = setTimeout(showContinue, contMs);
+  }
+
+  // A TV waking from off (HDMI-CEC) boots its receiver app a few seconds after
+  // the session connects, so the first loadMedia can land before it's ready and
+  // fail silently. Retry with backoff against the session that's still current.
+  var attempts = 0;
+  (function attempt() {
+    if (!castSession) return; // session ended while waiting
+    castSession.loadMedia(req).catch(function(err) {
+      attempts++;
+      if (attempts <= 4 && castSession) {
+        setTimeout(attempt, attempts * 1500);
+      } else {
+        console.warn('Cast loadMedia failed after retries:', err);
+      }
+    });
+  })();
+}
+
+// After a narration clip ends the DMR reverts to the Chromecast idle splash,
+// losing the panel picture. Re-load the panel's still image so the TV keeps
+// showing it while the viewer decides to advance. The DMR only displays a still
+// for a short interval, so the player-state handler re-asserts it on IDLE while
+// castHolding is set — keeping the picture up until advance or disconnect.
+function castHoldImage(i, data) {
+  if (!castSession || !data) return;
+  var imgFile = (data.images && data.images.length > 0) ? data.images[0] : data.image;
+  if (!imgFile) return;
+  castHolding = true;
+  var panelId = manifest.panels[i].id;
+  var mediaUrl = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + imgFile;
+  var contentType = imgFile.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+  var absUrl = new URL(mediaUrl, window.location.origin).href;
+  var mi = new chrome.cast.media.MediaInfo(absUrl, contentType);
+  var meta = new chrome.cast.media.GenericMediaMetadata();
+  meta.title = data.title || ''; meta.subtitle = data.subtitle || '';
+  mi.metadata = meta;
+  var req = new chrome.cast.media.LoadRequest(mi);
+  req.autoplay = true;
+  castSession.loadMedia(req).catch(function(err) {
+    console.warn('Cast hold-image failed:', err);
+  });
+}
+
+function onCastConnected() {
+  updateCastBtn();
+  stopNarration(); // stop local audio immediately
+  if (currentIdx >= 0 && manifest) {
+    var data = panelCache[currentIdx];
+    if (data) {
+      // Re-show controls so phone can drive the cast player
+      if (data.narration) {
+        $narLabel.textContent = data.title || '';
+        $narPauseBtn.textContent = '⏸';
+        $narPauseBtn.style.display = '';
+        $narRestartBtn.style.display = '';
+      }
+      castPanel(currentIdx, data);
+    }
+  }
+}
+
+function onCastDisconnected() {
+  updateCastBtn();
+  castHolding = false;
+  // Return to the phone paused at the current panel — don't auto-read aloud.
+  if (currentIdx >= 0 && manifest) {
+    var pv   = $stage.querySelector('.panel-view.active');
+    var data = panelCache[currentIdx];
+    if (pv && data) playNarration(pv, currentIdx, data, true);
+  }
+}
+
+// The <google-cast-launcher> element handles the connect/disconnect dialog and
+// icon state itself — no custom click handler needed (one would double-fire
+// requestSession and desync from the SDK's true session state).
+
+registerSW(); // Start early, independent of walkthrough init
 init().catch(function(e) {
   console.error(e);
   showError('An unexpected error occurred. Check the browser console.');
 });
 </script>
+<!-- Cast sender SDK — Chrome only; gracefully absent everywhere else -->
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 </body>
 </html>

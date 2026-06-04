@@ -1,0 +1,19 @@
+{
+  "name": "Parkins.ai Walkthroughs",
+  "short_name": "Walkthroughs",
+  "description": "Interactive guided audio walkthroughs",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

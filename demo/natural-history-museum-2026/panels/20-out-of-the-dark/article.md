@@ -1,0 +1,13 @@
+# Out of the Dark
+
+A plesiosaur skeleton, hung in a darkened gallery and lit from below in cool electric blue. The long, narrow skull dominates the foreground — slightly turned, mouth half-parted, two rows of interlocking needle teeth catching the light like a glass instrument. Behind it, blurred and unlit, the dim shapes of museum visitors. People reduced to suggestion.
+
+The museum is doing something quietly clever with the lighting here. The plesiosaur is sharp, defined, *present*. The living humans walking past it are silhouettes — anonymous outlines moving through a darker plane. Usually it's the other way round. Usually you are the focal point and the fossil is the backdrop. Here, the fossil has the foreground and you are the ambient atmosphere. The Mesozoic has elbowed the Anthropocene out of frame.
+
+A plesiosaur was not a dinosaur. It was a marine reptile, parallel branch on the same tree, and it spent something like a hundred and forty million years cruising the seas of the Jurassic and Cretaceous on those four big paddle-flippers — long-necked variants doing slow patrols at the surface, short-necked variants like this one running the deep-water predator role. They were the apex of their world for longer than mammals have *existed*. The fact that we can even read this skull — every vertebra, every articulation, every needle in the jaw — is largely an accident of marine sediment. They died, sank, were buried in mud, and the mud held them, kindly, for the duration of the gap between then and now.
+
+About those teeth. The jaw isn't built for slicing — it's built for trapping. The teeth from the upper and lower rows interlock like the tines of two combs pushed together. When the jaws closed on a fish or a small cephalopod, the prey was held in a cage of needles it couldn't escape from. The predator didn't need to chew, didn't need to cut; it just needed to *keep*. Whatever swam in didn't swim back out.
+
+Plesiosaurs were among the very first vertebrate fossils Western science noticed in the early nineteenth century — Mary Anning was finding them in the Dorset cliffs above Lyme Regis when no one yet had a vocabulary for what *kind* of animal she was holding. The specimens had been invisible for a hundred and eighty million years; then someone with a hammer and a stubborn mind chipped them out of the rock and they were suddenly here, available to be looked at. The blue lighting is a slightly theatrical way of saying the same thing: *out of the dark.*
+
+This one *is* out of the dark. The dark is still in the room, but it's behind it now. And the people standing in that dark are, just for the moment of the photograph, the ones being looked at.
