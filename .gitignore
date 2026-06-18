@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Local source-of-truth tree for walkthrough content (personal/holiday photos).
+# Mirrors what's in R2, but stays out of the public git remote.
+content/
