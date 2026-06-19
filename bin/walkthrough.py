@@ -122,6 +122,40 @@ def r2_put(local: Path, key: str, content_type: str) -> None:
         raise RuntimeError(f"R2 put failed for {key}:\n{res.stderr[-800:]}")
 
 
+_HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; walkthrough-ingest/1.0)"}
+
+
+def fetch_panel_json(wid: str, panel_id: str) -> dict | None:
+    """Read a panel.json via the Worker (panel routes are not code-gated).
+    Used by `add-photos` / `remove-panel` when the local content tree
+    doesn't have the panel (e.g. it was authored from a different machine
+    or via a different working copy). Returns None on 404."""
+    url = f"{WORKER_PROD}/api/walkthroughs/{wid}/panels/{panel_id}"
+    req = urllib.request.Request(url, headers=_HTTP_HEADERS)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def fetch_manifest(wid: str, entry_code: str | None) -> dict | None:
+    """Read the manifest via the Worker. If gated, supply the entry code."""
+    url = f"{WORKER_PROD}/api/walkthroughs/{wid}"
+    if entry_code:
+        url += f"?code={entry_code}"
+    req = urllib.request.Request(url, headers=_HTTP_HEADERS)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
 def r2_delete(key: str) -> None:
     cmd = ["npx", "wrangler", "r2", "object", "delete",
            f"{R2_BUCKET}/{key}", "--remote"]
@@ -290,26 +324,37 @@ def cmd_add_panel(args: argparse.Namespace) -> None:
     if not article_text.endswith("\n"):
         article_text += "\n"
 
-    # Normalise image into the panel dir.
-    src_image = Path(args.image).expanduser().resolve()
-    local_photo = panel_dir / "photo.jpg"
-    normalise_image(src_image, local_photo)
+    # Normalise every image into the panel dir. Filenames are stable —
+    # photo-01.jpg, photo-02.jpg, … — and ordered as passed on the CLI.
+    image_paths: list[str] = list(args.image)
+    image_filenames: list[str] = []
+    for idx, src in enumerate(image_paths, start=1):
+        src_path = Path(src).expanduser().resolve()
+        fname = f"photo-{idx:02d}.jpg"
+        normalise_image(src_path, panel_dir / fname)
+        image_filenames.append(fname)
 
-    # panel.json + article.md
+    # panel.json + article.md. We always write the gallery field. `image`
+    # mirrors images[0] so older code paths (cast hold-image, fallbacks)
+    # still find a value — matches the Computing Heroes convention.
     panel_json = {
         "title": args.title,
         "subtitle": args.subtitle or "",
         "body": args.body,
-        "image": "photo.jpg",
+        "image": image_filenames[0],
+        "images": image_filenames,
         "article": "article.md",
     }
     (panel_dir / "panel.json").write_text(
         json.dumps(panel_json, indent=2, ensure_ascii=False) + "\n")
     (panel_dir / "article.md").write_text(article_text)
 
-    # Sync the three files to R2.
+    # Sync everything to R2 in the order: photos, panel.json (last so the
+    # manifest can't reference a panel.json whose photos aren't yet there),
+    # article.md.
     base = f"walkthroughs/{wid}/panels/{panel_id}"
-    r2_put(local_photo, f"{base}/photo.jpg", "image/jpeg")
+    for fname in image_filenames:
+        r2_put(panel_dir / fname, f"{base}/{fname}", "image/jpeg")
     r2_put(panel_dir / "panel.json", f"{base}/panel.json", "application/json")
     r2_put(panel_dir / "article.md", f"{base}/article.md", "text/markdown")
 
@@ -353,14 +398,84 @@ def cmd_remove_panel(args: argparse.Namespace) -> None:
     write_manifest(wid, manifest)
     upload_manifest(wid)
 
+    # Look up the panel's image list so we delete the right photo-NN.jpg
+    # files. Prefer the local source-of-truth panel.json; fall back to R2
+    # via the Worker if the local tree doesn't have it.
+    panel: dict = {}
+    local_panel_json = walkthrough_dir(wid) / "panels" / panel_id / "panel.json"
+    if local_panel_json.exists():
+        panel = json.loads(local_panel_json.read_text())
+    else:
+        panel = fetch_panel_json(wid, panel_id) or {}
+    images = list(panel.get("images") or [])
+    if not images and panel.get("image"):
+        images = [panel["image"]]
+    if not images:
+        images = ["photo.jpg"]
+
     base = f"walkthroughs/{wid}/panels/{panel_id}"
-    for fname in ("photo.jpg", "panel.json", "article.md", "cast.mp4", "narration.mp3"):
+    for fname in images + ["panel.json", "article.md", "cast.mp4", "narration.mp3"]:
         r2_delete(f"{base}/{fname}")
 
     local_dir = walkthrough_dir(wid) / "panels" / panel_id
     if local_dir.exists():
         shutil.rmtree(local_dir)
     print(f"removed panel '{panel_id}' from {wid}")
+
+
+def cmd_add_photos(args: argparse.Namespace) -> None:
+    """Append images to an existing panel without recreating it.
+
+    Used when Graham sends follow-up photos in a separate message that
+    belong to the same scene as the panel just created.
+    """
+    wid = args.walkthrough or get_active()
+    if not wid:
+        raise SystemExit("No walkthrough specified.")
+    panel_id = args.panel_id
+
+    # Resolve panel.json — prefer local source-of-truth, fall back to R2.
+    panel_dir = walkthrough_dir(wid) / "panels" / panel_id
+    panel_json_path = panel_dir / "panel.json"
+    if panel_json_path.exists():
+        panel = json.loads(panel_json_path.read_text())
+    else:
+        panel = fetch_panel_json(wid, panel_id)
+        if panel is None:
+            raise SystemExit(f"Panel '{panel_id}' not found in {wid}.")
+        # Drop the id the Worker injects on its outbound shape.
+        panel.pop("id", None)
+        panel_dir.mkdir(parents=True, exist_ok=True)
+
+    images = list(panel.get("images") or [])
+    if not images and panel.get("image"):
+        images = [panel["image"]]
+
+    # Continue ordinal numbering past whatever's already there.
+    start = len(images) + 1
+    new_filenames: list[str] = []
+    for offset, src in enumerate(args.image):
+        idx = start + offset
+        src_path = Path(src).expanduser().resolve()
+        fname = f"photo-{idx:02d}.jpg"
+        normalise_image(src_path, panel_dir / fname)
+        new_filenames.append(fname)
+
+    images.extend(new_filenames)
+    panel["images"] = images
+    panel["image"] = images[0]
+    panel.setdefault("article", "article.md")
+
+    panel_json_path.write_text(
+        json.dumps(panel, indent=2, ensure_ascii=False) + "\n")
+
+    base = f"walkthroughs/{wid}/panels/{panel_id}"
+    for fname in new_filenames:
+        r2_put(panel_dir / fname, f"{base}/{fname}", "image/jpeg")
+    r2_put(panel_json_path, f"{base}/panel.json", "application/json")
+
+    print(f"appended {len(new_filenames)} photo(s) to {panel_id}: {', '.join(new_filenames)}")
+    print(f"  panel now has {len(images)} image(s)")
 
 
 def cmd_set_active(args: argparse.Namespace) -> None:
@@ -415,10 +530,12 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--force", action="store_true", help="Overwrite an existing local dir")
     c.set_defaults(func=cmd_create)
 
-    a = sub.add_parser("add-panel", help="Add a panel from an image + commentary.")
+    a = sub.add_parser("add-panel", help="Add a panel from one or more images + commentary.")
     a.add_argument("--walkthrough", default=None,
                    help="Walkthrough id (defaults to .active-walkthrough)")
-    a.add_argument("--image", required=True, help="Path to the source image")
+    a.add_argument("--image", required=True, action="append",
+                   help="Path to a source image. Repeat for a multi-image gallery panel "
+                        "(order is preserved; first image is the panel thumbnail).")
     a.add_argument("--title", required=True)
     a.add_argument("--subtitle", default="")
     a.add_argument("--body", required=True, help="Short caption-length prose")
@@ -428,6 +545,15 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"Section to append to (default: '{DEFAULT_SECTION_TITLE}')")
     a.add_argument("--force", action="store_true", help="Allow a duplicate slug")
     a.set_defaults(func=cmd_add_panel)
+
+    ap = sub.add_parser("add-photos",
+                        help="Append one or more images to an existing panel (no prose changes).")
+    ap.add_argument("--walkthrough", default=None,
+                    help="Walkthrough id (defaults to .active-walkthrough)")
+    ap.add_argument("--panel-id", required=True, help="Existing panel id, e.g. 06-birra-moretti")
+    ap.add_argument("--image", required=True, action="append",
+                    help="Path to a source image. Repeat to append several at once.")
+    ap.set_defaults(func=cmd_add_photos)
 
     r = sub.add_parser("remove-panel", help="Remove a panel.")
     r.add_argument("--walkthrough", default=None)
