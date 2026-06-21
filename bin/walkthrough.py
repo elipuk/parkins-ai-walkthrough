@@ -64,6 +64,10 @@ WORKER_PROD = "https://walkthrough.parkins.ai"
 IMAGE_LONG_EDGE = 2000
 IMAGE_QUALITY = 4  # ffmpeg -q:v scale 2 (best) .. 31 (worst); 4 ≈ JPEG quality ~88
 
+VIDEO_LONG_EDGE = 1280
+VIDEO_CRF = 23
+VIDEO_FILENAME = "video.mp4"
+
 THEME_PRESETS = {
     "wedding": {
         "primary": "#1a1714", "surface": "#221f1b", "accent": "#c9986a",
@@ -204,6 +208,36 @@ def upload_manifest(wid: str) -> None:
            "application/json")
 
 
+def normalise_video(src: Path, dest: Path) -> None:
+    """Transcode a video to H.264 + AAC, faststart, capped at VIDEO_LONG_EDGE.
+    Metadata stripped. Source audio passed through to AAC at 128k; clips
+    without audio just produce a video-only file. Full duration preserved.
+
+    `-movflags +faststart` puts the moov atom at the head so HTML5 video
+    can start playing while the rest is still downloading.
+    """
+    if not src.exists():
+        raise SystemExit(f"Video not found: {src}")
+    vf = (
+        f"scale='if(gt(iw,ih),min({VIDEO_LONG_EDGE},iw),-2)':"
+        f"'if(gt(ih,iw),min({VIDEO_LONG_EDGE},ih),-2)',"
+        "format=yuv420p"
+    )
+    cmd = [
+        FFMPEG, "-y", "-loglevel", "error",
+        "-i", str(src),
+        "-vf", vf,
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", str(VIDEO_CRF),
+        "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",
+        "-map_metadata", "-1",
+        str(dest),
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0 or not dest.exists() or dest.stat().st_size == 0:
+        raise RuntimeError(f"ffmpeg video transcode failed:\n{res.stderr[-600:]}")
+
+
 def normalise_image(src: Path, dest: Path) -> None:
     """Cap long edge, strip metadata, re-encode as jpg via ffmpeg."""
     if not src.exists():
@@ -334,6 +368,13 @@ def cmd_add_panel(args: argparse.Namespace) -> None:
         normalise_image(src_path, panel_dir / fname)
         image_filenames.append(fname)
 
+    # Optional single video — transcoded to a standard mp4 alongside the photos.
+    video_filename: str | None = None
+    if args.video:
+        video_src = Path(args.video).expanduser().resolve()
+        normalise_video(video_src, panel_dir / VIDEO_FILENAME)
+        video_filename = VIDEO_FILENAME
+
     # panel.json + article.md. We always write the gallery field. `image`
     # mirrors images[0] so older code paths (cast hold-image, fallbacks)
     # still find a value — matches the Computing Heroes convention.
@@ -345,16 +386,20 @@ def cmd_add_panel(args: argparse.Namespace) -> None:
         "images": image_filenames,
         "article": "article.md",
     }
+    if video_filename:
+        panel_json["video"] = video_filename
     (panel_dir / "panel.json").write_text(
         json.dumps(panel_json, indent=2, ensure_ascii=False) + "\n")
     (panel_dir / "article.md").write_text(article_text)
 
-    # Sync everything to R2 in the order: photos, panel.json (last so the
-    # manifest can't reference a panel.json whose photos aren't yet there),
-    # article.md.
+    # Sync everything to R2. Photos and the (optional) video go up before
+    # panel.json — so the manifest never references assets that aren't yet
+    # in the bucket.
     base = f"walkthroughs/{wid}/panels/{panel_id}"
     for fname in image_filenames:
         r2_put(panel_dir / fname, f"{base}/{fname}", "image/jpeg")
+    if video_filename:
+        r2_put(panel_dir / video_filename, f"{base}/{video_filename}", "video/mp4")
     r2_put(panel_dir / "panel.json", f"{base}/panel.json", "application/json")
     r2_put(panel_dir / "article.md", f"{base}/article.md", "text/markdown")
 
@@ -413,8 +458,13 @@ def cmd_remove_panel(args: argparse.Namespace) -> None:
     if not images:
         images = ["photo.jpg"]
 
+    # video.mp4 is the inline panel video (this feature). cast.mp4 is the
+    # separate prebaked story-mode/narration video — different code path,
+    # but if one exists we clean it up too rather than leaving R2 orphans.
     base = f"walkthroughs/{wid}/panels/{panel_id}"
-    for fname in images + ["panel.json", "article.md", "cast.mp4", "narration.mp3"]:
+    cleanup = images + [VIDEO_FILENAME, "panel.json", "article.md",
+                        "cast.mp4", "narration.mp3"]
+    for fname in cleanup:
         r2_delete(f"{base}/{fname}")
 
     local_dir = walkthrough_dir(wid) / "panels" / panel_id
@@ -476,6 +526,47 @@ def cmd_add_photos(args: argparse.Namespace) -> None:
 
     print(f"appended {len(new_filenames)} photo(s) to {panel_id}: {', '.join(new_filenames)}")
     print(f"  panel now has {len(images)} image(s)")
+
+
+def cmd_add_video(args: argparse.Namespace) -> None:
+    """Attach (or replace) the single video on an existing panel.
+
+    The walkthrough viewer renders one video per panel as the first slide
+    of the carousel. Re-running this with a different clip overwrites the
+    existing video.mp4 — we surface that explicitly so the caller knows.
+    """
+    wid = args.walkthrough or get_active()
+    if not wid:
+        raise SystemExit("No walkthrough specified.")
+    panel_id = args.panel_id
+
+    # Resolve panel.json — prefer local source-of-truth, fall back to R2.
+    panel_dir = walkthrough_dir(wid) / "panels" / panel_id
+    panel_json_path = panel_dir / "panel.json"
+    if panel_json_path.exists():
+        panel = json.loads(panel_json_path.read_text())
+    else:
+        panel = fetch_panel_json(wid, panel_id)
+        if panel is None:
+            raise SystemExit(f"Panel '{panel_id}' not found in {wid}.")
+        panel.pop("id", None)
+        panel_dir.mkdir(parents=True, exist_ok=True)
+
+    replacing = bool(panel.get("video"))
+
+    src_video = Path(args.video).expanduser().resolve()
+    normalise_video(src_video, panel_dir / VIDEO_FILENAME)
+
+    panel["video"] = VIDEO_FILENAME
+    panel_json_path.write_text(
+        json.dumps(panel, indent=2, ensure_ascii=False) + "\n")
+
+    base = f"walkthroughs/{wid}/panels/{panel_id}"
+    r2_put(panel_dir / VIDEO_FILENAME, f"{base}/{VIDEO_FILENAME}", "video/mp4")
+    r2_put(panel_json_path, f"{base}/panel.json", "application/json")
+
+    verb = "replaced video on" if replacing else "added video to"
+    print(f"{verb} {panel_id} (1 video max — this is the panel's only clip)")
 
 
 def cmd_set_active(args: argparse.Namespace) -> None:
@@ -543,6 +634,9 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--article", default=None, help="Inline markdown (avoid — prefer --article-file)")
     a.add_argument("--section", default=None,
                    help=f"Section to append to (default: '{DEFAULT_SECTION_TITLE}')")
+    a.add_argument("--video", default=None,
+                   help="Optional path to a single video clip. Renders as the first "
+                        "slide of the panel's gallery. One video max per panel.")
     a.add_argument("--force", action="store_true", help="Allow a duplicate slug")
     a.set_defaults(func=cmd_add_panel)
 
@@ -554,6 +648,14 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--image", required=True, action="append",
                     help="Path to a source image. Repeat to append several at once.")
     ap.set_defaults(func=cmd_add_photos)
+
+    av = sub.add_parser("add-video",
+                        help="Attach or replace the single video on an existing panel.")
+    av.add_argument("--walkthrough", default=None,
+                    help="Walkthrough id (defaults to .active-walkthrough)")
+    av.add_argument("--panel-id", required=True, help="Existing panel id")
+    av.add_argument("--video", required=True, help="Path to the source video clip")
+    av.set_defaults(func=cmd_add_video)
 
     r = sub.add_parser("remove-panel", help="Remove a panel.")
     r.add_argument("--walkthrough", default=None)
