@@ -22,12 +22,17 @@
   --border: rgba(255, 255, 255, 0.08);
   --header-h: 52px;
   --bottom-h: 44px;
+  --accent-r: 0;
+  --accent-g: 255;
+  --accent-b: 242;
+  --font-heading: 'Orbitron', monospace;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
 
 html, body {
   height: 100%; overflow: hidden;
   background: var(--primary); color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* ── Header (transparent overlay) ─────────────────────────────────────────── */
@@ -47,10 +52,10 @@ html, body {
   align-items: center; justify-content: center;
   transition: border-color 0.2s, background 0.2s; flex-shrink: 0;
 }
-#map-btn:hover { border-color: var(--accent); background: rgba(0,255,242,0.08); }
+#map-btn:hover { border-color: var(--accent); background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.08); }
 
 #wt-title {
-  flex: 1; font-size: 0.72rem; font-weight: 600; font-family: 'Orbitron', monospace;
+  flex: 1; font-size: 0.72rem; font-weight: 600; font-family: var(--font-heading);
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
   opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -70,8 +75,8 @@ html, body {
   perspective: 1400px;
   overflow: hidden;
   background-image:
-    linear-gradient(rgba(0,255,242,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,242,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.03) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
@@ -153,7 +158,7 @@ html, body {
 .panel-meta {
   position: absolute; top: calc(var(--header-h) + 14px); left: 18px;
   font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-heading);
   color: var(--accent); opacity: 0;
   transition: opacity 0.45s ease; transition-delay: 0.3s;
   z-index: 3;
@@ -164,7 +169,7 @@ html, body {
 .panel-section-lbl {
   position: absolute; top: calc(var(--header-h) + 36px); left: 18px;
   font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-heading);
   color: var(--muted); opacity: 0;
   transition: opacity 0.4s ease; transition-delay: 0.25s;
   z-index: 3;
@@ -183,7 +188,7 @@ html, body {
   transition: border-color 0.2s, background 0.2s;
   z-index: 5;
 }
-.btn-nav:hover { border-color: var(--accent); background: rgba(0,255,242,0.12); }
+.btn-nav:hover { border-color: var(--accent); background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.12); }
 .btn-nav:disabled { opacity: 0.15; cursor: not-allowed; pointer-events: none; }
 .btn-prev { left: 14px; }
 .btn-next { right: 14px; }
@@ -200,10 +205,10 @@ html, body {
 .panel-text-section::-webkit-scrollbar { display: none; }
 
 .panel-title {
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-heading);
   font-size: clamp(16px, 2.8vw, 30px); font-weight: 700; line-height: 1.2;
   color: var(--text); margin-bottom: 6px;
-  text-shadow: 0 0 14px rgba(0,255,242,0.5), 0 0 28px rgba(0,255,242,0.15);
+  text-shadow: 0 0 14px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.5), 0 0 28px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.15);
   opacity: 0; transform: translateY(10px);
   transition: opacity 0.5s ease, transform 0.5s ease; transition-delay: 0.45s;
 }
@@ -236,10 +241,10 @@ html, body {
   border: 1px solid var(--accent); color: var(--accent);
   border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500;
   letter-spacing: 0.02em;
-  box-shadow: 0 0 12px rgba(0,255,242,0.15);
+  box-shadow: 0 0 12px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.15);
   transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
-.btn-readmore:hover { background: var(--accent); color: var(--primary); box-shadow: 0 0 20px rgba(0,255,242,0.4); }
+.btn-readmore:hover { background: var(--accent); color: var(--primary); box-shadow: 0 0 20px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.4); }
 
 /* ── Bottom bar — narration progress ─────────────────────────────────────── */
 #bottom-bar {
@@ -256,7 +261,7 @@ html, body {
 #nar-fill {
   position: absolute; left: 0; top: 0; bottom: 0;
   background: var(--accent); width: 0%;
-  box-shadow: 0 0 8px rgba(0,255,242,0.6);
+  box-shadow: 0 0 8px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.6);
   transition: width 0.4s linear;
 }
 #bottom-inner {
@@ -273,25 +278,25 @@ html, body {
   position: fixed; bottom: calc(var(--bottom-h) + 16px); left: 50%;
   transform: translateX(-50%);
   padding: 11px 34px;
-  border: 1px solid rgba(0, 255, 242, 0.45);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.45);
   background: rgba(10, 10, 15, 0.75); backdrop-filter: blur(10px);
   color: var(--accent); border-radius: 4px; font-size: 0.88rem;
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-heading);
   font-weight: 500; letter-spacing: 0.06em; cursor: pointer;
   opacity: 0; pointer-events: none;
-  box-shadow: 0 0 12px rgba(0,255,242,0.15);
+  box-shadow: 0 0 12px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.15);
   transition: opacity 0.5s ease, border-color 0.2s, background 0.2s, box-shadow 0.2s;
   z-index: 25;
   animation: pulse-glow 2.4s ease-in-out infinite;
 }
 #continue-btn.visible { opacity: 1; pointer-events: all; }
 #continue-btn:hover {
-  background: rgba(0, 255, 242, 0.12); border-color: var(--accent);
-  box-shadow: 0 0 24px rgba(0,255,242,0.4);
+  background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.12); border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.4);
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(0,255,242,0.15), 0 0 0 0 rgba(0, 255, 242, 0.25); }
-  50%       { box-shadow: 0 0 12px rgba(0,255,242,0.15), 0 0 0 10px rgba(0, 255, 242, 0); }
+  0%, 100% { box-shadow: 0 0 12px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.15), 0 0 0 0 rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.25); }
+  50%       { box-shadow: 0 0 12px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.15), 0 0 0 10px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0); }
 }
 
 /* ── Sidebar (floating overlay) ─────────────────────────────────────────── */
@@ -321,7 +326,7 @@ html, body {
   display: flex; align-items: center; gap: 12px; flex-shrink: 0;
 }
 #sidebar-wt-title {
-  flex: 1; font-size: 0.78rem; font-weight: 600; font-family: 'Orbitron', monospace;
+  flex: 1; font-size: 0.78rem; font-weight: 600; font-family: var(--font-heading);
   color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -360,7 +365,7 @@ html, body {
 }
 .nav-item:hover { background: rgba(255,255,255,0.03); }
 .nav-item.active { border-left-color: var(--accent); background: rgba(255,255,255,0.04); }
-.nav-num { font-size: 0.65rem; font-family: 'Orbitron', monospace; color: var(--muted); padding-top: 3px; flex-shrink: 0; min-width: 20px; }
+.nav-num { font-size: 0.65rem; font-family: var(--font-heading); color: var(--muted); padding-top: 3px; flex-shrink: 0; min-width: 20px; }
 .nav-title-wrap .nav-title { font-size: 0.88rem; line-height: 1.35; color: var(--text); }
 .nav-item.active .nav-title { color: var(--accent); }
 .nav-title-wrap .nav-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; line-height: 1.3; }
@@ -446,15 +451,15 @@ html, body {
 #menu-view.show { display: flex; }
 #menu-header-inner { max-width: 900px; margin: 0 auto 52px; }
 #menu-logo {
-  font-family: 'Orbitron', monospace; font-size: 0.65rem;
+  font-family: var(--font-heading); font-size: 0.65rem;
   letter-spacing: 0.2em; text-transform: uppercase;
   color: var(--accent); opacity: 0.55; margin-bottom: 16px;
 }
 #menu-title {
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-heading);
   font-size: clamp(28px, 4vw, 52px); font-weight: 700;
   color: var(--text); line-height: 1.1;
-  text-shadow: 0 0 24px rgba(0,255,242,0.4);
+  text-shadow: 0 0 24px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.4);
 }
 #menu-grid {
   max-width: 900px; margin: 0 auto;
@@ -470,7 +475,7 @@ html, body {
 }
 .menu-card:hover {
   border-color: var(--accent); transform: translateY(-3px);
-  box-shadow: 0 8px 32px rgba(0,255,242,0.12);
+  box-shadow: 0 8px 32px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.12);
 }
 .menu-card-cover {
   height: 160px; overflow: hidden; background: #080810;
@@ -488,7 +493,7 @@ html, body {
 }
 .menu-card-body { padding: 18px 20px 20px; }
 .menu-card-title {
-  font-family: 'Orbitron', monospace; font-size: 0.84rem;
+  font-family: var(--font-heading); font-size: 0.84rem;
   font-weight: 600; letter-spacing: 0.04em;
   color: var(--text); margin-bottom: 8px;
 }
@@ -498,7 +503,7 @@ html, body {
 }
 .menu-card-meta {
   font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase;
-  font-family: 'Orbitron', monospace; color: var(--accent); opacity: 0.65;
+  font-family: var(--font-heading); color: var(--accent); opacity: 0.65;
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
@@ -546,7 +551,7 @@ html, body {
   content: 'no signal';
   position: absolute;
   font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase;
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-heading);
   color: rgba(255,255,255,0.18);
   bottom: 24px; left: 50%; transform: translateX(-50%);
 }
@@ -560,7 +565,7 @@ html, body {
   flex-shrink: 0; display: none;
 }
 #offline-btn:hover { border-color: var(--accent); color: var(--text); }
-#offline-btn.saving { color: var(--accent); opacity: 0.65; cursor: default; border-color: rgba(0,255,242,0.35); }
+#offline-btn.saving { color: var(--accent); opacity: 0.65; cursor: default; border-color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.35); }
 #offline-btn.saved  { border-color: var(--accent); color: var(--accent); cursor: default; }
 
 /* ── Cast button (standard Google Cast launcher) ───────────────────────────── */
@@ -600,6 +605,29 @@ html, body {
 }
 .carousel-dot.active { background: var(--accent); transform: scale(1.3); }
 
+/* ── Inline panel video (one-per-panel feature) ──────────────────────────── */
+.panel-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  background: #000;
+  display: block;
+}
+.video-unmute {
+  position: absolute;
+  top: calc(var(--header-h) + 14px); right: 18px;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: rgba(10,10,15,0.6); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: var(--text); cursor: pointer;
+  font-size: 1rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 5;
+  transition: border-color 0.2s, background 0.2s, opacity 0.3s;
+}
+.video-unmute:hover { background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.18); }
+
 /* ── Narration controls ─────────────────────────────────────────────────────── */
 .nar-ctrl {
   background: none; border: none; color: var(--muted);
@@ -616,7 +644,7 @@ html, body {
   left: 50%; transform: translateX(-50%);
   width: max-content; max-width: calc(100vw - 32px);
   background: rgba(14,14,22,0.93); backdrop-filter: blur(12px);
-  border: 1px solid rgba(0,255,242,0.25);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.25);
   border-radius: 8px; padding: 9px 14px;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   z-index: 28; font-size: 0.8rem; color: var(--muted);
@@ -631,8 +659,114 @@ html, body {
 }
 #resume-yes { border: 1px solid var(--accent); color: var(--accent); }
 #resume-no  { border: 1px solid var(--border); color: var(--muted); }
-#resume-yes:hover { background: rgba(0,255,242,0.1); }
+#resume-yes:hover { background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.1); }
 #resume-no:hover  { border-color: rgba(255,255,255,0.3); color: var(--text); }
+
+/* ── Cover screen (opt-in: manifest.cover_screen = true) ──────────────────── */
+#cover-screen {
+  position: fixed; inset: 0; z-index: 110;
+  background: var(--primary);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding: 0 32px 88px;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.9s ease;
+}
+#cover-screen.hidden { opacity: 0; pointer-events: none; }
+#cover-bg {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center 20%;
+}
+#cover-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, transparent 28%, var(--primary) 84%);
+}
+#cover-content {
+  position: relative; z-index: 2;
+  text-align: center; width: 100%; max-width: 520px;
+}
+#cover-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 600; color: var(--text);
+  letter-spacing: 0.02em; line-height: 1.1;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 24px rgba(0,0,0,0.5);
+}
+#cover-subtitle {
+  font-family: var(--font-heading);
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.82);
+  letter-spacing: 0.06em; margin-bottom: 44px;
+}
+#cover-begin-btn {
+  font-family: var(--font-heading);
+  font-size: 0.9rem; letter-spacing: 0.1em;
+  color: var(--accent);
+  background: rgba(10,10,15,0.65); backdrop-filter: blur(10px);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.4);
+  padding: 12px 40px; border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+#cover-begin-btn:hover {
+  background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.1);
+  border-color: var(--accent);
+}
+
+/* ── Entry-code gate ───────────────────────────────────────────────────────── */
+#code-gate {
+  position: fixed; inset: 0; z-index: 120;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px;
+}
+#code-gate-box { text-align: center; width: 100%; max-width: 340px; }
+#code-gate-wt-title {
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-weight: 600; color: var(--text);
+  letter-spacing: 0.02em; margin-bottom: 8px;
+}
+#code-gate-label {
+  font-family: var(--font-heading);
+  font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.6);
+  margin-bottom: 32px;
+}
+#code-gate-input {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 14px 20px;
+  font-family: var(--font-heading);
+  font-size: 1.6rem; letter-spacing: 0.28em; text-align: center; text-transform: uppercase;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.32);
+  color: var(--text); border-radius: 2px; outline: none;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+#code-gate-input:focus { border-color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.7); }
+#code-gate-error {
+  font-size: 0.78rem; color: rgba(220,80,80,0.9);
+  min-height: 1.2em; margin-bottom: 18px;
+}
+#code-gate-btn {
+  font-family: var(--font-heading); font-size: 0.9rem; letter-spacing: 0.1em;
+  color: var(--accent);
+  background: rgba(10,10,15,0.65); backdrop-filter: blur(10px);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.4);
+  padding: 12px 0; border-radius: 4px;
+  cursor: pointer; width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+#code-gate-btn:hover {
+  background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.1);
+  border-color: var(--accent);
+}
+
+#home-btn { color: inherit; text-decoration: none; font-size: 18px;
+  padding: 4px 6px; line-height: 1; opacity: 0.85; }
+#home-btn:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -648,6 +782,12 @@ html, body {
 </div>
 
 <header id="header">
+  <!-- Route back to the hub. walkthrough is exempt from the house shell (a solid
+       bar would fight the photographs) but it was a dead end: no link to
+       parkins.ai or any app. Exempt from the shell is not exempt from being
+       reachable in both directions. -->
+  <a id="home-btn" href="https://parkins.ai/" aria-label="Back to The City"
+     title="Back to The City">&#127961;&#65039;</a>
   <button id="map-btn" aria-label="Map">⊞</button>
   <span id="wt-title">Loading…</span>
   <google-cast-launcher id="cast-btn" style="display:none" aria-label="Cast to TV"></google-cast-launcher>
@@ -656,6 +796,25 @@ html, body {
 </header>
 
 <div id="stage"></div>
+
+<div id="cover-screen" style="display:none">
+  <div id="cover-bg"></div>
+  <div id="cover-content">
+    <div id="cover-title"></div>
+    <div id="cover-subtitle"></div>
+    <button id="cover-begin-btn">Open the day</button>
+  </div>
+</div>
+
+<div id="code-gate" style="display:none">
+  <div id="code-gate-box">
+    <div id="code-gate-wt-title"></div>
+    <div id="code-gate-label">Entry code required</div>
+    <input id="code-gate-input" type="text" maxlength="6" placeholder="——————" autocomplete="off" spellcheck="false">
+    <div id="code-gate-error"></div>
+    <button id="code-gate-btn">Continue</button>
+  </div>
+</div>
 
 <div id="bottom-bar">
   <div id="nar-track"><div id="nar-fill"></div></div>
@@ -779,11 +938,119 @@ function mkPlaceholder(idx, title) {
 // ── Theme ──────────────────────────────────────────────────────────────────
 function applyTheme(t) {
   if (!t) return;
-  const r = document.documentElement;
-  if (t.primary) r.style.setProperty('--primary', t.primary);
-  if (t.accent)  r.style.setProperty('--accent',  t.accent);
-  if (t.text)    r.style.setProperty('--text',    t.text);
-  if (t.primary) r.style.setProperty('--surface', lighten(t.primary, 12));
+  const root = document.documentElement;
+  if (t.primary) root.style.setProperty('--primary', t.primary);
+  if (t.accent) {
+    root.style.setProperty('--accent', t.accent);
+    const rgb = hexToRgb(t.accent);
+    root.style.setProperty('--accent-r', rgb[0]);
+    root.style.setProperty('--accent-g', rgb[1]);
+    root.style.setProperty('--accent-b', rgb[2]);
+  }
+  if (t.text)    root.style.setProperty('--text',   t.text);
+  if (t.primary) root.style.setProperty('--surface', lighten(t.primary, 12));
+  if (t.surface) root.style.setProperty('--surface', t.surface);
+  if (t.muted)   root.style.setProperty('--muted',   t.muted);
+  if (t.border)  root.style.setProperty('--border',  t.border);
+  if (t.font_heading) {
+    root.style.setProperty('--font-heading', "'" + t.font_heading + "', Georgia, serif");
+    loadFont(t.font_heading);
+  }
+  if (t.font_body) {
+    root.style.setProperty('--font-body', "'" + t.font_body + "', Georgia, serif");
+    loadFont(t.font_body);
+  }
+  if (t.preset) applyPreset(t.preset);
+}
+const PRESETS = {
+  wedding: `
+/* Stage: remove grid, warm amber vignette */
+#stage {
+  background-image: radial-gradient(ellipse 120% 45% at 50% 0%, rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.09) 0%, transparent 100%);
+  background-size: auto;
+}
+/* Sidebar section headings: hairline gold rules either side */
+.section-heading {
+  display: flex; align-items: center; gap: 10px;
+  color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.65);
+  padding-top: 22px;
+}
+.section-heading::before, .section-heading::after {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.22);
+}
+/* Panel subtitle: italic */
+.panel-subtitle { font-style: italic; }
+/* Panel title: italic + softer glow */
+.panel-title {
+  font-style: italic;
+  text-shadow: 0 0 20px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.35),
+               0 0 40px rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.12);
+}
+/* Buttons: sharp corners, italic, generous letter-spacing */
+#continue-btn { border-radius: 1px; letter-spacing: 0.1em; font-style: italic; }
+.btn-readmore  { border-radius: 1px; letter-spacing: 0.04em; font-style: italic; }
+/* Drawer article: headings in heading font, italic */
+#drawer-article h1, #drawer-article h2 {
+  font-family: var(--font-heading); font-style: italic; font-weight: 600;
+}
+/* Drawer blockquotes: centered stationery style, gold hairlines top+bottom */
+#drawer-article blockquote {
+  border-left: none;
+  border-top: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.38);
+  border-bottom: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.38);
+  padding: 1.3em 1.8em; margin: 1.8em 0;
+  text-align: center; font-size: 1.06em;
+  color: rgba(245,240,232,0.78); font-style: italic;
+}
+/* Drawer head: gold hairline separator */
+#drawer-head { border-bottom: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.25); }
+/* Transitions: softer, more languid */
+.panel-view.settling  { transition: transform 0.85s cubic-bezier(0.25,0.1,0.25,1), opacity 0.65s ease; }
+.panel-view.to-left  { transition: transform 0.55s cubic-bezier(0.25,0.1,0.25,1), opacity 0.45s ease !important; }
+.panel-view.to-right { transition: transform 0.55s cubic-bezier(0.25,0.1,0.25,1), opacity 0.45s ease !important; }
+/* Nav active item: warm gold wash */
+.nav-item.active { background: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.06); }
+/* Panel initials placeholder: heading font italic */
+.panel-initials { font-family: var(--font-heading); font-style: italic; }
+/* Cover screen: italic title/subtitle, sharp-corner button */
+#cover-title { font-style: italic; }
+#cover-subtitle { font-style: italic; }
+#cover-begin-btn { border-radius: 1px; font-style: italic; }
+/* Code gate: italic, sharp corners */
+#code-gate-wt-title { font-style: italic; }
+#code-gate-label { font-style: italic; letter-spacing: 0.12em; }
+#code-gate-input { border-radius: 1px; }
+#code-gate-btn { border-radius: 1px; font-style: italic; }
+`
+};
+function applyPreset(name) {
+  const css = PRESETS[name];
+  if (!css) return;
+  let el = document.getElementById('theme-preset-css');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'theme-preset-css';
+    document.head.appendChild(el);
+  }
+  el.textContent = css;
+}
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(function(c) { return c + c; }).join('');
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+function loadFont(name) {
+  const id = 'gf-' + name.replace(/\s+/g, '-').toLowerCase();
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=' +
+    name.replace(/\s+/g, '+') +
+    ':ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&display=swap';
+  document.head.appendChild(link);
 }
 function lighten(hex, a) {
   hex = hex.replace('#', '');
@@ -1041,11 +1308,19 @@ function buildPanel(i, data) {
   const sectionLbl = sectionByPanelId[panelId] || '';
   const sentences = splitSentences(data.body || '');
 
-  // Prefer data.images array; fall back to single data.image for existing panels
+  // Build a unified slides list. The optional inline video (one-per-panel)
+  // sits as the first slide; images follow. The carousel scaffolding only
+  // appears when there are 2+ slides — so video-only or single-image panels
+  // still render via the simple wrap.
   const imageList = (data.images && data.images.length > 0)
     ? data.images
     : (data.image ? [data.image] : []);
-  const isCarousel = imageList.length > 1;
+  const slides = [];
+  if (data.video) slides.push({ kind: 'video', file: data.video });
+  for (let k = 0; k < imageList.length; k++) {
+    slides.push({ kind: 'image', file: imageList[k] });
+  }
+  const isCarousel = slides.length > 1;
 
   const el = document.createElement('div');
   el.className = 'panel-view';
@@ -1055,17 +1330,33 @@ function buildPanel(i, data) {
   }).join('');
 
   const phHtml = '<div class="panel-placeholder"><div class="panel-initials">' + esc(ph.initials) + '</div></div>';
+  function slideInner(slide) {
+    if (slide.kind === 'video') {
+      const src = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + slide.file;
+      // Muted+autoplay+playsinline lets the browser kick the clip off
+      // without a user gesture; the unmute button promotes it to audio.
+      return '<video class="panel-video" playsinline muted autoplay loop preload="metadata" ' +
+             'src="' + src + '"></video>' +
+             '<button class="video-unmute" aria-label="Unmute video" title="Tap for sound">🔇</button>';
+    }
+    return phHtml;
+  }
+
   let imgContent;
   if (isCarousel) {
     imgContent =
       '<div class="carousel-track">' +
-        imageList.map(function(_, ci) { return '<div class="panel-img-wrap' + (ci === 0 ? ' cur' : '') + '">' + phHtml + '</div>'; }).join('') +
+        slides.map(function(s, ci) {
+          return '<div class="panel-img-wrap' + (ci === 0 ? ' cur' : '') + '" data-kind="' + s.kind + '">' + slideInner(s) + '</div>';
+        }).join('') +
       '</div>' +
       '<div class="carousel-dots">' +
-        imageList.map(function(_, ci) {
+        slides.map(function(_, ci) {
           return '<span class="carousel-dot' + (ci === 0 ? ' active' : '') + '" data-ci="' + ci + '"></span>';
         }).join('') +
       '</div>';
+  } else if (slides.length === 1) {
+    imgContent = '<div class="panel-img-wrap" data-kind="' + slides[0].kind + '">' + slideInner(slides[0]) + '</div>';
   } else {
     imgContent = '<div class="panel-img-wrap">' + phHtml + '</div>';
   }
@@ -1085,24 +1376,40 @@ function buildPanel(i, data) {
     '</div>' +
     '<button class="btn-readmore">Read more</button>';
 
-  // Load images with retry/backoff
+  // Image slides: load via retry/backoff. Video slides load themselves.
   if (isCarousel) {
     const wraps = el.querySelectorAll('.carousel-track .panel-img-wrap');
-    imageList.forEach(function(img, ci) {
-      loadImgWithRetry(
-        '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + img,
-        data.title + ' · ' + (ci + 1),
-        wraps[ci]
-      );
+    slides.forEach(function(slide, ci) {
+      if (slide.kind === 'image') {
+        loadImgWithRetry(
+          '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + slide.file,
+          data.title + ' · ' + (ci + 1),
+          wraps[ci]
+        );
+      }
     });
-    initCarousel(el, imageList.length);
-  } else if (imageList.length === 1) {
+    initCarousel(el, slides);
+  } else if (slides.length === 1 && slides[0].kind === 'image') {
     loadImgWithRetry(
-      '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + imageList[0],
+      '/api/walkthroughs/' + wid + '/asset/' + panelId + '/' + slides[0].file,
       data.title,
       el.querySelector('.panel-img-wrap')
     );
   }
+
+  // Tap-to-unmute on inline videos. stopPropagation so the swipe handler
+  // on the image section doesn't treat this as a carousel-advance gesture.
+  el.querySelectorAll('.video-unmute').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const v = btn.parentElement.querySelector('video');
+      if (!v) return;
+      v.muted = !v.muted;
+      btn.textContent = v.muted ? '🔇' : '🔊';
+      btn.dataset.userUnmuted = (!v.muted).toString();
+      if (!v.muted) { v.play().catch(function() {}); }
+    });
+  });
 
   el.querySelector('.btn-readmore').addEventListener('click', function() { openArticle(i, data.title); });
   el.querySelector('.btn-prev').addEventListener('click', function() { goToPanel(currentIdx - 1); });
@@ -1112,8 +1419,9 @@ function buildPanel(i, data) {
 }
 
 // ── Carousel ───────────────────────────────────────────────────────────────
-function initCarousel(panelEl, count) {
+function initCarousel(panelEl, slides) {
   let ci = 0;
+  const count = slides.length;
   const wraps = panelEl.querySelectorAll('.carousel-track .panel-img-wrap');
   const dots  = panelEl.querySelectorAll('.carousel-dot');
   let autoTimer = null;
@@ -1122,16 +1430,35 @@ function initCarousel(panelEl, count) {
     ci = ((idx % count) + count) % count;
     wraps.forEach(function(w, j) { w.classList.toggle('cur', j === ci); });
     dots.forEach(function(d, j) { d.classList.toggle('active', j === ci); });
+    // Pause any video that's no longer the visible slide; resume the active
+    // one. Re-mute on leave so the next visit starts quiet (the user has to
+    // tap the speaker again — same compact as autoplay-muted on first view).
+    wraps.forEach(function(w, j) {
+      const v = w.querySelector('video');
+      if (!v) return;
+      if (j === ci) {
+        v.play().catch(function() {});
+      } else {
+        v.pause();
+        const btn = w.querySelector('.video-unmute');
+        if (btn) { btn.textContent = '🔇'; delete btn.dataset.userUnmuted; }
+        v.muted = true;
+      }
+    });
   }
 
   function stopAuto() {
     if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
   }
 
-  // Auto-revolve every 5s while this panel is on screen; the first manual
-  // interaction cancels it so auto-advance never fights the viewer.
+  // Auto-revolve every 5s while this panel is on screen — but skip the tick
+  // whenever the current slide is a video, so the clip can play out / loop
+  // without being yanked off after 5s. The viewer always swipes or taps a
+  // dot to leave a video slide.
   autoTimer = setInterval(function() {
-    if (panelEl.classList.contains('active')) goCarousel(ci + 1);
+    if (!panelEl.classList.contains('active')) return;
+    if (slides[ci] && slides[ci].kind === 'video') return;
+    goCarousel(ci + 1);
   }, 5000);
 
   dots.forEach(function(dot) {
@@ -1528,6 +1855,44 @@ $resumeYes.addEventListener('click', function() {
 });
 $resumeNo.addEventListener('click', dismissResume);
 
+// ── Entry-code gate ────────────────────────────────────────────────────────
+function showCodeGate(title) {
+  return new Promise(function(resolve) {
+    const $gate = document.getElementById('code-gate');
+    const $err  = document.getElementById('code-gate-error');
+    const $inp  = document.getElementById('code-gate-input');
+    document.getElementById('code-gate-wt-title').textContent = title || '';
+    $err.textContent = '';
+    $inp.value = '';
+    $gate.style.display = 'flex';
+    requestAnimationFrame(function() { $inp.focus(); });
+
+    async function attempt() {
+      const code = $inp.value.trim().toUpperCase();
+      if (!code) return;
+      let data;
+      try {
+        const res = await fetch('/api/walkthroughs/' + wid + '?code=' + encodeURIComponent(code));
+        data = await res.json();
+      } catch(e) {
+        $err.textContent = 'Network error — please try again';
+        return;
+      }
+      if (data.code_required) {
+        $err.textContent = 'Incorrect code — please try again';
+        $inp.value = '';
+        $inp.focus();
+        return;
+      }
+      $gate.style.display = 'none';
+      resolve({ code: code, manifest: data });
+    }
+
+    document.getElementById('code-gate-btn').onclick = attempt;
+    $inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') attempt(); });
+  });
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 function showError(msg) {
   $loading.classList.add('gone');
@@ -1544,12 +1909,26 @@ async function init() {
   }
 
   try {
-    const res = await fetch('/api/walkthroughs/' + wid);
+    const storedCode = localStorage.getItem('wt-code-' + wid) || '';
+    const qs = storedCode ? '?code=' + encodeURIComponent(storedCode) : '';
+    const res = await fetch('/api/walkthroughs/' + wid + qs);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     manifest = await res.json();
   } catch(e) {
     showError('Could not load walkthrough "' + wid + '".');
     return;
+  }
+
+  // Apply theme from stub so gate screen is already themed
+  if (manifest.theme) applyTheme(manifest.theme);
+
+  // Entry-code gate
+  if (manifest.code_required) {
+    localStorage.removeItem('wt-code-' + wid); // stored code was wrong or absent
+    $loading.classList.add('gone');
+    const result = await showCodeGate(manifest.title);
+    localStorage.setItem('wt-code-' + wid, result.code);
+    manifest = result.manifest;
   }
 
   document.title = manifest.title;
@@ -1561,6 +1940,22 @@ async function init() {
   setupMusic();
   initOfflineBtn(wid); // async, runs in background — don't await
   const savedPos = getSavedPosition(); // read before goToPanel(0) overwrites it
+
+  if (manifest.cover_screen) {
+    const $cs = document.getElementById('cover-screen');
+    document.getElementById('cover-title').textContent = manifest.title || '';
+    document.getElementById('cover-subtitle').textContent = manifest.subtitle || '';
+    document.getElementById('cover-bg').style.backgroundImage = 'url(/api/walkthroughs/' + wid + '/cover)';
+    $cs.style.display = 'flex';
+    $loading.classList.add('gone');
+    await new Promise(function(resolve) {
+      document.getElementById('cover-begin-btn').addEventListener('click', function() {
+        $cs.classList.add('hidden');
+        setTimeout(function() { $cs.style.display = 'none'; resolve(); }, 900);
+      }, { once: true });
+    });
+  }
+
   await goToPanel(0);
   $loading.classList.add('gone');
   if (savedPos > 0 && savedPos < manifest.panels.length) {
@@ -1638,9 +2033,14 @@ function castPanel(i, data) {
   if (!castSession) return;
   var panelId = manifest.panels[i].id;
 
-  // Use pre-baked cast.mp4 when narration exists; otherwise cast the primary image
+  // Cast the pre-baked cast.mp4 when the panel has narration OR the walkthrough
+  // has been baked into per-panel slideshow clips (manifest.cast_baked). A baked
+  // clip holds each photo for a fixed interval with no receiver photo-drop, so it
+  // neither flickers nor auto-advances — it sits until the viewer advances.
+  // Otherwise fall back to casting the primary image as a single still.
+  var baked = data.narration || (manifest && manifest.cast_baked);
   var mediaUrl, contentType;
-  if (data.narration) {
+  if (baked) {
     mediaUrl    = '/api/walkthroughs/' + wid + '/asset/' + panelId + '/cast.mp4';
     contentType = 'video/mp4';
   } else {
@@ -1663,9 +2063,8 @@ function castPanel(i, data) {
   castMediaHad = false;
   castHolding  = false;
 
-  // The baked cast.mp4 holds the still image for minutes after the audio ends
-  // (no video→photo switch, no flicker), so the clip no longer ends at narration
-  // end — show Continue on a timer instead of waiting for the player to go IDLE.
+  // Only a narration clip shows the Continue prompt on a timer; a silent baked
+  // slideshow has no narration end, so the viewer advances manually.
   if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
   if (data.narration) {
     var contMs = (Number(data.narration_duration) || 30) * 1000 + 800;
