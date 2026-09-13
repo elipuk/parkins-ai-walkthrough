@@ -40,9 +40,9 @@ async function handleAPI(request, env, url) {
 
   const id = parts[2];
 
-  // GET /api/walkthroughs/{id}  → manifest.json
+  // GET /api/walkthroughs/{id}  → manifest.json (entry-code gated if configured)
   if (parts.length === 3) {
-    return r2Get(env, `walkthroughs/${id}/manifest.json`, 'application/json');
+    return getManifest(env, id, url);
   }
 
   const sub = parts[3];
@@ -78,11 +78,55 @@ async function handleAPI(request, env, url) {
   return jsonErr('Not found', 404);
 }
 
+async function getManifest(env, id, url) {
+  const obj = await env.WALKTHROUGHS.get(`walkthroughs/${id}/manifest.json`);
+  if (!obj) return jsonErr('Not found', 404);
+
+  const manifest = JSON.parse(await obj.text());
+
+  if (manifest.entry_code) {
+    const supplied = (url.searchParams.get('code') || '').trim().toUpperCase();
+    const expected = manifest.entry_code.trim().toUpperCase();
+    if (supplied !== expected) {
+      // Return a stub — enough for the client to theme and show the gate
+      return new Response(JSON.stringify({
+        id: manifest.id || id,
+        title: manifest.title || '',
+        subtitle: manifest.subtitle || '',
+        theme: manifest.theme || {},
+        code_required: true,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+        },
+      });
+    }
+  }
+
+  return jsonManifest(manifest);
+}
+
+function jsonManifest(manifest) {
+  const out = Object.assign({}, manifest);
+  delete out.entry_code; // never send the code to clients
+  return new Response(JSON.stringify(out), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+    },
+  });
+}
+
 async function r2Get(env, key, contentType) {
   const obj = await env.WALKTHROUGHS.get(key);
   if (!obj) return jsonErr('Not found', 404);
 
-  const cacheControl = contentType.startsWith('audio') || contentType.startsWith('image')
+  const cacheControl = contentType.startsWith('audio')
+                       || contentType.startsWith('image')
+                       || contentType.startsWith('video')
     ? 'public, max-age=3600'
     : 'no-cache';
 
