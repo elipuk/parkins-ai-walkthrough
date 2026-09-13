@@ -473,6 +473,55 @@ def cmd_remove_panel(args: argparse.Namespace) -> None:
     print(f"removed panel '{panel_id}' from {wid}")
 
 
+def cmd_move_panel(args: argparse.Namespace) -> None:
+    """Reorder a panel without touching its assets.
+
+    Panel display order follows the manifest `panels` array (and each
+    section's `panels` list), NOT the numeric id prefix — so a move is a
+    pure manifest edit + re-upload. R2 assets are keyed by panel id and
+    stay put. Section order is re-derived from the new global order, so
+    sections always mirror the top-level sequence.
+    """
+    wid = args.walkthrough or get_active()
+    if not wid:
+        raise SystemExit("No walkthrough specified.")
+    manifest = read_manifest(wid)
+
+    panels = manifest.get("panels", [])
+    ids = [p["id"] for p in panels]
+    pid = args.panel_id
+    if pid not in ids:
+        raise SystemExit(f"Panel '{pid}' not in {wid}.")
+
+    remaining = [i for i in ids if i != pid]
+
+    if args.to_index is not None:
+        idx = max(0, min(args.to_index, len(remaining)))
+        new_ids = remaining[:idx] + [pid] + remaining[idx:]
+    else:
+        ref = args.after if args.after is not None else args.before
+        if ref not in ids:
+            raise SystemExit(f"Reference panel '{ref}' not in {wid}.")
+        if ref == pid:
+            raise SystemExit("Cannot move a panel relative to itself.")
+        pos = remaining.index(ref)
+        insert_at = pos + 1 if args.after is not None else pos
+        new_ids = remaining[:insert_at] + [pid] + remaining[insert_at:]
+
+    by_id = {p["id"]: p for p in panels}
+    manifest["panels"] = [by_id[i] for i in new_ids]
+    order = {i: n for n, i in enumerate(new_ids)}
+    for s in manifest.get("sections", []):
+        s["panels"] = sorted(s.get("panels", []), key=lambda x: order.get(x, len(new_ids)))
+
+    write_manifest(wid, manifest)
+    upload_manifest(wid)
+
+    where = new_ids.index(pid)
+    nbr = new_ids[where - 1] if where > 0 else "(start)"
+    print(f"moved '{pid}' → position {where} (after {nbr}) in {wid}")
+
+
 def cmd_add_photos(args: argparse.Namespace) -> None:
     """Append images to an existing panel without recreating it.
 
@@ -656,6 +705,20 @@ def build_parser() -> argparse.ArgumentParser:
     av.add_argument("--panel-id", required=True, help="Existing panel id")
     av.add_argument("--video", required=True, help="Path to the source video clip")
     av.set_defaults(func=cmd_add_video)
+
+    m = sub.add_parser("move-panel",
+                       help="Reorder a panel (manifest-only; assets stay put).")
+    m.add_argument("--walkthrough", default=None,
+                   help="Walkthrough id (defaults to .active-walkthrough)")
+    m.add_argument("--panel-id", required=True, help="Panel id to move")
+    mg = m.add_mutually_exclusive_group(required=True)
+    mg.add_argument("--after", default=None, metavar="PANEL_ID",
+                    help="Place immediately after this panel")
+    mg.add_argument("--before", default=None, metavar="PANEL_ID",
+                    help="Place immediately before this panel")
+    mg.add_argument("--to-index", type=int, default=None, metavar="N",
+                    help="Place at 0-based index N in the panel order")
+    m.set_defaults(func=cmd_move_panel)
 
     r = sub.add_parser("remove-panel", help="Remove a panel.")
     r.add_argument("--walkthrough", default=None)
