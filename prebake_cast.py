@@ -130,11 +130,14 @@ def _normalize(image: Path, out: Path) -> bool:
     return result.returncode == 0 and out.stat().st_size > 0
 
 
-def bake_cast(images: list[Path], audio: Path, out: Path, workdir: Path) -> bool:
+def bake_cast(images: list[Path], audio: Path | None, out: Path, workdir: Path) -> bool:
     """Bake a 1280×720 landscape MP4 that rotates through the panel's images at
     PER_IMAGE_SECONDS each (matching the web carousel), looping to fill
     HOLD_SECONDS. Audio plays once at the start, then silence — so casting keeps
-    the picture rotating with no video→photo flicker.
+    the picture rotating with no video→photo flicker. When there is no narration
+    (audio is None) the clip is baked silent — the whole point on Cast is a clean,
+    flicker-free slideshow that holds each photo for a fixed interval and sits on
+    the panel until the viewer advances.
 
     A single image collapses to the previous behaviour: one still held for the
     whole duration."""
@@ -169,13 +172,18 @@ def bake_cast(images: list[Path], audio: Path, out: Path, workdir: Path) -> bool
     cmd = [
         FFMPEG, "-y",
         "-f", "concat", "-safe", "0", "-i", str(list_path),
-        "-i", str(audio),
+    ]
+    if audio is not None:
+        cmd += ["-i", str(audio)]
+    cmd += [
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-r", str(HOLD_FPS),
         "-crf", "28", "-preset", "veryfast",
         "-x264-params", "keyint=99999:scenecut=0:ref=16:bframes=0",
-        "-c:a", "aac", "-b:a", "128k",
-        "-af", "apad",
+    ]
+    if audio is not None:
+        cmd += ["-c:a", "aac", "-b:a", "128k", "-af", "apad"]
+    cmd += [
         "-t", str(HOLD_SECONDS),
         str(out),
     ]
@@ -205,8 +213,8 @@ def process_panel(walkthrough_id: str, panel_id: str, cf_token: str) -> str:
 
     narration_file: str | None = panel.get("narration")
 
-    if not image_files or not narration_file:
-        return f"[{panel_id}] SKIP — no image or narration (images={image_files}, nar={narration_file})"
+    if not image_files:
+        return f"[{panel_id}] SKIP — no images (images={image_files})"
 
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -223,10 +231,15 @@ def process_panel(walkthrough_id: str, panel_id: str, cf_token: str) -> str:
                 return f"[{panel_id}] FAIL — image download ({image_file})"
             image_locals.append(image_local)
 
-        if not download_file(f"{base}/{narration_file}", nar_local):
-            return f"[{panel_id}] FAIL — narration download"
+        # Narration is optional: with it, the audio plays once; without it, the
+        # clip is a silent flicker-free slideshow.
+        audio_arg: Path | None = None
+        if narration_file:
+            if not download_file(f"{base}/{narration_file}", nar_local):
+                return f"[{panel_id}] FAIL — narration download"
+            audio_arg = nar_local
 
-        if not bake_cast(image_locals, nar_local, cast_local, tmpdir):
+        if not bake_cast(image_locals, audio_arg, cast_local, tmpdir):
             return f"[{panel_id}] FAIL — ffmpeg"
 
         size_kb = cast_local.stat().st_size // 1024
