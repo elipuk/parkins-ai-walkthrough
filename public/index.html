@@ -1332,7 +1332,6 @@ function loadImgWithRetry(src, alt, wrap) {
 
   function onOnline() {
     if (done) return;
-    if (!wrap.isConnected) { cleanup(); return; }
     if (backoffId) { clearTimeout(backoffId); backoffId = null; }
     attempt();
   }
@@ -1345,10 +1344,18 @@ function loadImgWithRetry(src, alt, wrap) {
       if (done) return;
       cleanup();
       if (ph) ph.classList.remove('img-loading');
-      if (wrap.isConnected) wrap.insertBefore(img, wrap.firstChild);
+      // Insert unconditionally. Panels are built detached and appended later,
+      // so a fast (or cached) image can finish loading while wrap.isConnected
+      // is still false. Gating on isConnected here silently threw that image
+      // away and left the placeholder up — which is why the second and
+      // subsequent panels showed no picture. The wrap is a live node either
+      // way; when the panel is appended the image comes with it.
+      wrap.insertBefore(img, wrap.firstChild);
     };
     img.onerror = function() {
-      if (done || !wrap.isConnected) { cleanup(); return; }
+      // Only abandon on a genuine error, never merely because the panel has
+      // not been appended yet — same detached-build trap as onload above.
+      if (done) { cleanup(); return; }
       retryCount++;
       if (retryCount >= MAX_RETRIES) {
         cleanup();
