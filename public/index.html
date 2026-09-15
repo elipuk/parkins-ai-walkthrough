@@ -1132,6 +1132,12 @@ let navigating = false;
 let resumeTarget = 0, resumeDismissTimer = null;
 let drawerOpen = false;
 let castSession = null, castPlayer = null, castCtrl = null;
+// Queue state. castQueueIds maps panel index -> receiver itemId once a queue is
+// loaded; empty means we never got one and the per-panel loadMedia path is in use.
+let castQueueIds = [], castQueueLoading = false;
+// Set while the phone is the one driving a queue jump, so the receiver's echo of
+// that change is not mistaken for the TV moving by itself.
+let castJumpInFlight = false;
 let castAvailable = false, castMediaHad = false, castHolding = false;
 let castContinueTimer = null;
 // Every deferred showContinue goes through this so teardown can cancel it. An
@@ -1729,7 +1735,7 @@ async function goToPanel(i) {
   savePosition(i);
   renderNav();
   playNarration(panelView, i, data);
-  if (castSession) castPanel(i, data); // drive TV when casting
+  if (castSession) castPanel(i, data); // drive TV when casting — phone leads, always
 
   // Prefetch neighbours
   if (i + 1 < manifest.panels.length) loadPanel(i + 1).catch(function(){});
@@ -2055,6 +2061,23 @@ function initCastApi() {
         castSession = ctx.getCurrentSession();
         castPlayer  = new cast.framework.RemotePlayer();
         castCtrl    = new cast.framework.RemotePlayerController(castPlayer);
+        // REPEAT_SINGLE should mean the receiver never walks to another item on
+        // its own. Should is not is: if it ever does, follow it rather than let
+        // the phone and the TV silently show different panels.
+        castCtrl.addEventListener(
+          cast.framework.RemotePlayerEventType.MEDIA_INFO_CHANGED,
+          function() {
+            if (!castSession || !castQueueIds.length || castJumpInFlight) return;
+            var media = castSession.getMediaSession();
+            if (!media || media.currentItemId === undefined) return;
+            var idx = castQueueIds.indexOf(media.currentItemId);
+            if (idx >= 0 && idx !== currentIdx) {
+              console.warn('Receiver moved to item', idx, 'on its own — following.');
+              goToPanel(idx);
+            }
+          }
+        );
+
         castCtrl.addEventListener(
           cast.framework.RemotePlayerEventType.PLAYER_STATE_CHANGED,
           function() {
@@ -2090,6 +2113,7 @@ function initCastApi() {
       } else if (e.sessionState === cast.framework.SessionState.SESSION_ENDED ||
                  e.sessionState === cast.framework.SessionState.SESSION_START_FAILED) {
         castSession = null; castPlayer = null; castCtrl = null; castMediaHad = false;
+        castQueueIds = []; castQueueLoading = false;
         onCastDisconnected();
       }
     }
@@ -2161,8 +2185,103 @@ function updateCastBtn() {
   $castBtn.style.display = castAvailable ? '' : 'none';
 }
 
+// ── Cast queue ──────────────────────────────────────────────────────────────
+//
+// The queue exists for seamless, preloaded panel changes — NOT for auto-advance.
+// Graham's ruling (2026-09-15): "would have it up indefinitely or until
+// disconnect". The phone is the remote and the TV is the display; the picture
+// changes when he changes it and at no other time.
+//
+// REPEAT_SINGLE is what buys that. At the end of an item the receiver repeats
+// that same item instead of walking to the next one, so the panel holds. The
+// baked clip already carries a long silent tail after its narration, so the
+// repeat is not reached in any realistic sitting — and if it ever is, it
+// re-shows the same picture rather than jumping to a different panel.
+//
+// This is why the clip length did NOT change when the queue landed: the tail is
+// the hold mechanism, not a workaround for the old flicker.
+
+function castQueueItem(i) {
+  var panelId = manifest.panels[i].id;
+  var absUrl  = new URL('/api/walkthroughs/' + wid + '/asset/' + panelId + '/cast.mp4',
+                        window.location.origin).href;
+  var mi   = new chrome.cast.media.MediaInfo(absUrl, 'video/mp4');
+  var meta = new chrome.cast.media.GenericMediaMetadata();
+  var p    = manifest.panels[i];
+  meta.title    = p.title    || '';
+  meta.subtitle = p.subtitle || '';
+  mi.metadata   = meta;
+  var item = new chrome.cast.media.QueueItem(mi);
+  item.autoplay = true;
+  return item;
+}
+
+function castLoadQueue(startIdx) {
+  if (!castSession || !manifest || castQueueLoading) return false;
+  // Only worth queueing when the walkthrough is actually baked; otherwise every
+  // item would 404 and the queue would be worse than the single-load path.
+  if (!(manifest.cast_baked || (panelCache[startIdx] && panelCache[startIdx].narration))) {
+    return false;
+  }
+  var sessionObj;
+  try { sessionObj = castSession.getSessionObj(); } catch (e) { return false; }
+  if (!sessionObj || typeof sessionObj.queueLoad !== 'function') return false;
+
+  var items = [];
+  for (var i = 0; i < manifest.panels.length; i++) items.push(castQueueItem(i));
+
+  var req = new chrome.cast.media.QueueLoadRequest(items);
+  req.startIndex = Math.max(0, startIdx);
+  // The whole point: hold, never advance.
+  req.repeatMode = chrome.cast.media.RepeatMode.SINGLE;
+
+  castQueueLoading = true;
+  sessionObj.queueLoad(req, function() {
+    castQueueLoading = false;
+    var media = castSession && castSession.getMediaSession();
+    castQueueIds = (media && media.items) ? media.items.map(function(it) { return it.itemId; }) : [];
+    if (!castQueueIds.length) {
+      // Queue reported success but gave us no item ids — we cannot drive it, so
+      // fall back rather than pretend.
+      console.warn('Cast queue loaded with no item ids; falling back to single loads.');
+      var d = panelCache[currentIdx];
+      if (d) castPanel(currentIdx, d);
+      return;
+    }
+    setCastStatus('live', 'Casting to ' + castDeviceName());
+  }, function(err) {
+    castQueueLoading = false;
+    castQueueIds = [];
+    console.warn('Cast queueLoad failed, falling back to single loads:', err);
+    var d = panelCache[currentIdx];
+    if (d) castPanel(currentIdx, d);
+  });
+  return true;
+}
+
+// Returns true when the TV was driven via the queue, false to fall through to
+// the per-panel loadMedia path.
+function castJumpTo(i) {
+  if (!castSession || !castQueueIds.length) return false;
+  var itemId = castQueueIds[i];
+  if (itemId === undefined) return false;
+  var media = castSession.getMediaSession();
+  if (!media || typeof media.queueJumpToItem !== 'function') return false;
+  castJumpInFlight = true;
+  setTimeout(function() { castJumpInFlight = false; }, 2500);
+  media.queueJumpToItem(itemId, function() {
+    setCastStatus('live', 'Casting to ' + castDeviceName());
+  }, function(err) {
+    console.warn('Cast queueJumpToItem failed:', err);
+    setCastStatus('error', castLoadErrorText(err, true));
+  });
+  return true;
+}
+
 function castPanel(i, data) {
   if (!castSession) return;
+  // Queue first — a jump is preloaded and seamless where a fresh loadMedia is not.
+  if (castJumpTo(i)) return;
   var panelId = manifest.panels[i].id;
 
   // Cast the pre-baked cast.mp4 when the panel has narration OR the walkthrough
@@ -2264,7 +2383,9 @@ function onCastConnected() {
         $narPauseBtn.style.display = '';
         $narRestartBtn.style.display = '';
       }
-      castPanel(currentIdx, data);
+      // Try the queue first; castLoadQueue falls back to a single load itself if
+      // the receiver will not take one.
+      if (!castLoadQueue(currentIdx)) castPanel(currentIdx, data);
     }
   }
 }
