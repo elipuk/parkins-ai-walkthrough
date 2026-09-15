@@ -40,9 +40,9 @@ async function handleAPI(request, env, url) {
 
   const id = parts[2];
 
-  // GET /api/walkthroughs/{id}  → manifest.json
+  // GET /api/walkthroughs/{id}  → manifest.json (entry-code gated if configured)
   if (parts.length === 3) {
-    return r2Get(env, `walkthroughs/${id}/manifest.json`, 'application/json');
+    return getManifest(env, id, url);
   }
 
   const sub = parts[3];
@@ -59,7 +59,7 @@ async function handleAPI(request, env, url) {
 
   // GET /api/walkthroughs/{id}/asset/{panelId}/{filename}  → binary
   if (sub === 'asset' && parts.length === 6) {
-    return r2Get(env, `walkthroughs/${id}/panels/${parts[4]}/${parts[5]}`, mimeFor(parts[5]));
+    return r2Get(env, `walkthroughs/${id}/panels/${parts[4]}/${parts[5]}`, mimeFor(parts[5]), request);
   }
 
   // GET /api/walkthroughs/{id}/cover  → cover image
@@ -72,27 +72,134 @@ async function handleAPI(request, env, url) {
     const obj = await env.WALKTHROUGHS.get(`walkthroughs/${id}/manifest.json`);
     if (!obj) return jsonErr('Walkthrough not found', 404);
     const manifest = JSON.parse(await obj.text());
-    return r2Get(env, `walkthroughs/${id}/${manifest.music || 'music.mp3'}`, 'audio/mpeg');
+    return r2Get(env, `walkthroughs/${id}/${manifest.music || 'music.mp3'}`, 'audio/mpeg', request);
   }
 
   return jsonErr('Not found', 404);
 }
 
-async function r2Get(env, key, contentType) {
-  const obj = await env.WALKTHROUGHS.get(key);
+async function getManifest(env, id, url) {
+  const obj = await env.WALKTHROUGHS.get(`walkthroughs/${id}/manifest.json`);
   if (!obj) return jsonErr('Not found', 404);
 
-  const cacheControl = contentType.startsWith('audio') || contentType.startsWith('image')
+  const manifest = JSON.parse(await obj.text());
+
+  if (manifest.entry_code) {
+    const supplied = (url.searchParams.get('code') || '').trim().toUpperCase();
+    const expected = manifest.entry_code.trim().toUpperCase();
+    if (supplied !== expected) {
+      // Return a stub — enough for the client to theme and show the gate
+      return new Response(JSON.stringify({
+        id: manifest.id || id,
+        title: manifest.title || '',
+        subtitle: manifest.subtitle || '',
+        theme: manifest.theme || {},
+        code_required: true,
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache',
+        },
+      });
+    }
+  }
+
+  return jsonManifest(manifest);
+}
+
+function jsonManifest(manifest) {
+  const out = Object.assign({}, manifest);
+  delete out.entry_code; // never send the code to clients
+  return new Response(JSON.stringify(out), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache',
+    },
+  });
+}
+
+// Range is honoured for media so a client can read a slice rather than the whole
+// object. Two callers care: Cast/<video> seeking, and prebake_cast.py's
+// idempotency probe, which reads only the first few KB of a cast.mp4 to find the
+// bake stamp in its (faststart) moov atom. Without 206 support that probe would
+// have to download every baked file to decide it did not need rebaking.
+async function r2Get(env, key, contentType, request) {
+  const rangeHeader = request && request.headers.get('Range');
+  const parsed = rangeHeader ? parseRange(rangeHeader) : null;
+
+  // R2 *throws* on a range that starts past the end of the object rather than
+  // returning null, so a bad Range has to be caught, not null-checked. Measured
+  // on beta: without this, `bytes=99999999999-` came back 500.
+  let obj = null;
+  let rangeRejected = false;
+  try {
+    obj = parsed
+      ? await env.WALKTHROUGHS.get(key, { range: parsed })
+      : await env.WALKTHROUGHS.get(key);
+  } catch (e) {
+    if (!parsed) throw e;
+    rangeRejected = true;
+  }
+
+  if (!obj) {
+    // An unsatisfiable range against an object that does exist is a 416; a
+    // range against an object that does not exist is still a 404.
+    if (parsed) {
+      const head = await env.WALKTHROUGHS.head(key);
+      if (head) {
+        return new Response(null, {
+          status: 416,
+          headers: {
+            'Content-Range': `bytes */${head.size}`,
+            'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
+    }
+    if (rangeRejected) return jsonErr('Not found', 404);
+    return jsonErr('Not found', 404);
+  }
+
+  const cacheControl = contentType.startsWith('audio')
+                       || contentType.startsWith('image')
+                       || contentType.startsWith('video')
     ? 'public, max-age=3600'
     : 'no-cache';
 
-  return new Response(obj.body, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': cacheControl,
-      'Access-Control-Allow-Origin': '*',
-    },
-  });
+  const headers = {
+    'Content-Type': contentType,
+    'Cache-Control': cacheControl,
+    'Access-Control-Allow-Origin': '*',
+    'Accept-Ranges': 'bytes',
+  };
+
+  if (parsed && obj.range) {
+    const start = obj.range.offset ?? 0;
+    const length = obj.range.length ?? (obj.size - start);
+    headers['Content-Range'] = `bytes ${start}-${start + length - 1}/${obj.size}`;
+    return new Response(obj.body, { status: 206, headers });
+  }
+
+  return new Response(obj.body, { headers });
+}
+
+// Single-range only — `bytes=0-1023`, `bytes=1024-`, `bytes=-512`. Multipart
+// ranges and anything malformed fall through to a normal 200, which is a legal
+// response to a Range request.
+function parseRange(header) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m) return null;
+  const [, rawStart, rawEnd] = m;
+  if (rawStart === '' && rawEnd === '') return null;
+  if (rawStart === '') return { suffix: Number(rawEnd) };
+  const offset = Number(rawStart);
+  if (rawEnd === '') return { offset };
+  const end = Number(rawEnd);
+  if (end < offset) return null;
+  return { offset, length: end - offset + 1 };
 }
 
 async function listWalkthroughs(env) {

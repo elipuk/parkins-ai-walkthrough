@@ -346,6 +346,14 @@ html, body {
   transition: color 0.2s, background 0.15s;
 }
 #sidebar-home:hover { color: var(--accent); background: rgba(255,255,255,0.04); }
+/* Same escape hatch inside the article drawer — reading a panel article was a
+   dead end with no route back to the walkthrough chooser. */
+#drawer-home {
+  margin-left: auto; margin-right: 12px;
+  font-size: 13px; color: var(--muted); text-decoration: none;
+  white-space: nowrap; flex: 0 0 auto;
+}
+#drawer-home:hover { color: var(--accent); }
 
 #nav-list { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 16px; }
 #nav-list::-webkit-scrollbar { width: 3px; }
@@ -524,10 +532,67 @@ html, body {
    desktop. Above a landscape breakpoint we lay image and text side by side and
    switch the image to `contain` so the whole picture shows, uncropped. Mobile
    portrait and cast (a separately baked file) are unaffected. */
-@media (min-width: 900px) and (orientation: landscape) {
+/* Width alone decides this, deliberately. The rule used to also require
+   (orientation: landscape); that clause failed on real desktop browsers,
+   so the whole desktop block never applied and the base mobile rule
+   (object-fit: cover) cropped tall images top and bottom — the contact
+   sheet losing its first and last rows was this, not an overflow. A wide
+   viewport is the thing we actually care about. */
+@media (min-width: 900px) {
   .panel-view { flex-direction: row; }
   .panel-img-section { flex: 0 0 56%; height: 100%; }
-  .panel-img-wrap img { object-fit: contain; }
+  /* Beat the base `cover` rule for carousel slides too — the plain
+     `.panel-img-wrap img` selector ties with it on specificity, and a carousel
+     slide is still a .panel-img-wrap, so the crop was surviving into desktop. */
+  .panel-img-wrap img,
+  .carousel-track .panel-img-wrap img { object-fit: contain; }
+
+  /* ── Side-by-side, instead of rotating ──────────────────────────────────
+     The art is 4:5 portrait. One portrait image in a wide box wastes half the
+     screen; two of them side by side is 8:5, almost exactly widescreen. So on
+     desktop the carousel stops being a carousel and becomes a gallery: every
+     slide visible at once, each fitted whole, nothing cropped and nothing
+     hidden behind a timer. The auto-advance still ticks and still toggles
+     .cur — it simply has nothing left to hide, so it is harmless here rather
+     than needing a second code path. Mobile portrait and the baked cast video
+     are untouched. */
+  .carousel-track {
+    display: flex; flex-direction: row;
+    align-items: center; justify-content: center;
+    gap: 10px; padding: 10px;
+  }
+  .carousel-track .panel-img-wrap {
+    position: relative; inset: auto;
+    flex: 1 1 0; min-width: 0; height: 100%;
+    opacity: 1; z-index: auto;
+  }
+  /* Dots address slides the viewer can already see — drop them. */
+  .carousel-dots { display: none; }
+
+  /* Bold layout (Graham, 2026-09-15): on a wide screen there is room for the
+     whole set at once, so stop rotating and lay the panel's images out side by
+     side. The art is 4:5 portrait — two of them abreast is ~8:5, which is
+     almost exactly a widescreen box, so the column fills properly instead of
+     leaving a tall picture stranded in a short-and-wide frame.
+     The carousel still exists underneath; it is simply not needed here, and
+     auto-advance is disabled below so the layout does not shuffle itself. */
+  .carousel-track {
+    display: flex; flex-direction: row; align-items: center;
+    gap: 10px; padding: 0 10px;
+  }
+  .carousel-track .panel-img-wrap {
+    position: relative; inset: auto;
+    flex: 1 1 0; min-width: 0; height: 100%;
+    opacity: 1; z-index: 0;
+  }
+  /* .cur carries no meaning when every slide is on screen at once. */
+  .carousel-track .panel-img-wrap.cur { opacity: 1; z-index: 0; }
+  .carousel-dots { display: none; }
+
+  /* Nothing may overflow the column — the failure Graham reported was the
+     contact sheet running off the bottom of the screen. */
+  .panel-img-section, .carousel-track { overflow: hidden; }
+  .panel-img-wrap img { max-width: 100%; max-height: 100%; }
   /* No text sits below the image in split mode — drop the bottom blend fade. */
   .panel-img-section::after { display: none; }
   .panel-text-section {
@@ -568,14 +633,59 @@ html, body {
 #offline-btn.saving { color: var(--accent); opacity: 0.65; cursor: default; border-color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.35); }
 #offline-btn.saved  { border-color: var(--accent); color: var(--accent); cursor: default; }
 
-/* ── Cast button (standard Google Cast launcher) ───────────────────────────── */
+/* ── Cast button (standard Google Cast launcher) ─────────────────────────────
+   The launcher draws Google's own icon; these two custom properties are the
+   only supported way to colour it. --muted is 42% alpha, which washed the icon
+   out badly enough that Graham did not recognise it as the Cast icon at all
+   (live test, 2026-09-15). Disconnected is now full-strength --text — the
+   standard white glyph — and only *hover* dims. Connected stays accent so the
+   two states still read apart at a glance. */
 #cast-btn {
   width: 28px; height: 28px; cursor: pointer; flex-shrink: 0;
   --connected-color: var(--accent);
-  --disconnected-color: var(--muted);
+  --disconnected-color: var(--text);
   transition: opacity 0.2s;
 }
-#cast-btn:hover { opacity: 0.8; }
+#cast-btn:hover { opacity: 0.7; }
+
+/* ── Cast status bar ─────────────────────────────────────────────────────────
+   Once a session exists there was no visible sign of it and no way to re-send
+   the current panel, so a failed loadMedia looked identical to a TV that was
+   simply off. This bar is that missing feedback surface. */
+#cast-status {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  top: calc(var(--header-h) + 8px); z-index: 60;
+  display: none; align-items: center; gap: 10px;
+  max-width: min(92vw, 560px);
+  padding: 8px 14px;
+  background: rgba(22, 22, 37, 0.94);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.45);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  font-family: var(--font-body); font-size: 0.78rem; color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+#cast-status.visible { display: flex; }
+#cast-status.error {
+  border-color: rgba(255, 96, 96, 0.75);
+  background: rgba(48, 18, 18, 0.95);
+}
+#cast-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent);
+  animation: cast-pulse 1.8s ease-in-out infinite;
+}
+#cast-status.error #cast-status-dot { background: #ff6060; animation: none; }
+@keyframes cast-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+#cast-status-text { flex: 1; min-width: 0; line-height: 1.35; }
+#cast-status .cast-status-btn {
+  flex-shrink: 0; cursor: pointer;
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 11px; font-family: var(--font-body); font-size: 0.72rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+#cast-status .cast-status-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Carousel (multi-image panels) ─────────────────────────────────────────── */
 .carousel-track {
@@ -795,6 +905,13 @@ html, body {
   <button id="offline-btn" aria-label="Save for offline"></button>
 </header>
 
+<div id="cast-status" role="status" aria-live="polite">
+  <span id="cast-status-dot"></span>
+  <span id="cast-status-text"></span>
+  <button id="cast-resend" class="cast-status-btn" type="button">Re-send</button>
+  <button id="cast-stop" class="cast-status-btn" type="button">Stop</button>
+</div>
+
 <div id="stage"></div>
 
 <div id="cover-screen" style="display:none">
@@ -850,6 +967,7 @@ html, body {
     <div id="drawer-handle"></div>
     <div id="drawer-head">
       <div id="drawer-title"></div>
+      <a id="drawer-home" href="/" aria-label="All walkthroughs">← All walkthroughs</a>
       <button id="drawer-close" aria-label="Close">×</button>
     </div>
     <div id="drawer-scroll">
@@ -1080,8 +1198,18 @@ let navigating = false;
 let resumeTarget = 0, resumeDismissTimer = null;
 let drawerOpen = false;
 let castSession = null, castPlayer = null, castCtrl = null;
+// Queue state. castQueueIds maps panel index -> receiver itemId once a queue is
+// loaded; empty means we never got one and the per-panel loadMedia path is in use.
+let castQueueIds = [], castQueueLoading = false;
+// Set while the phone is the one driving a queue jump, so the receiver's echo of
+// that change is not mistaken for the TV moving by itself.
+let castJumpInFlight = false;
 let castAvailable = false, castMediaHad = false, castHolding = false;
 let castContinueTimer = null;
+// Every deferred showContinue goes through this so teardown can cancel it. An
+// orphaned one firing after disconnect is what makes the phone look like it
+// "reset" on its own.
+let continueTimer = null;
 const panelCache = {}, articleCache = {};
 
 // ── DOM ────────────────────────────────────────────────────────────────────
@@ -1100,6 +1228,10 @@ const $dClose     = document.getElementById('drawer-close');
 const $dBack      = document.getElementById('drawer-back');
 const $musicBtn   = document.getElementById('music-btn');
 const $castBtn    = document.getElementById('cast-btn');
+const $castStatus = document.getElementById('cast-status');
+const $castStatusText = document.getElementById('cast-status-text');
+const $castResend = document.getElementById('cast-resend');
+const $castStop   = document.getElementById('cast-stop');
 const $offlineBtn = document.getElementById('offline-btn');
 const $mapBtn     = document.getElementById('map-btn');
 const $sidebar    = document.getElementById('sidebar');
@@ -1117,12 +1249,28 @@ const $resumeYes     = document.getElementById('resume-yes');
 const $resumeNo      = document.getElementById('resume-no');
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
-function openSidebar()  { $sidebar.classList.add('open'); $sbBack.classList.add('open'); }
-function closeSidebar() { $sidebar.classList.remove('open'); $sbBack.classList.remove('open'); }
+// The sidebar is an overlay like the article drawer, so it joins the history
+// stack the same way: opening pushes an entry, browser-back consumes it and
+// closes the menu instead of walking the reader out of the walkthrough.
+let sidebarOpen = false;
+function openSidebar()  {
+  $sidebar.classList.add('open'); $sbBack.classList.add('open');
+  if (!sidebarOpen) { sidebarOpen = true; history.pushState({ sidebar: true }, ''); }
+}
+function closeSidebar() {
+  $sidebar.classList.remove('open'); $sbBack.classList.remove('open');
+  sidebarOpen = false;
+}
+// User-initiated close walks history back so the pushed entry is consumed,
+// mirroring dismissDrawer. Falls back to a direct close if the entry isn't ours.
+function dismissSidebar() {
+  if (sidebarOpen && history.state && history.state.sidebar) { history.back(); }
+  else { closeSidebar(); }
+}
 
 $mapBtn.addEventListener('click', openSidebar);
-$sbClose.addEventListener('click', closeSidebar);
-$sbBack.addEventListener('click', closeSidebar);
+$sbClose.addEventListener('click', dismissSidebar);
+$sbBack.addEventListener('click', dismissSidebar);
 
 function renderNav() {
   const panels = manifest.panels;
@@ -1163,7 +1311,7 @@ function renderNav() {
   $navList.querySelectorAll('.nav-item').forEach(function(el) {
     el.addEventListener('click', function() {
       const i = parseInt(el.dataset.i, 10);
-      closeSidebar();
+      dismissSidebar();
       if (i !== currentIdx) goToPanel(i);
     });
   });
@@ -1266,7 +1414,6 @@ function loadImgWithRetry(src, alt, wrap) {
 
   function onOnline() {
     if (done) return;
-    if (!wrap.isConnected) { cleanup(); return; }
     if (backoffId) { clearTimeout(backoffId); backoffId = null; }
     attempt();
   }
@@ -1279,10 +1426,18 @@ function loadImgWithRetry(src, alt, wrap) {
       if (done) return;
       cleanup();
       if (ph) ph.classList.remove('img-loading');
-      if (wrap.isConnected) wrap.insertBefore(img, wrap.firstChild);
+      // Insert unconditionally. Panels are built detached and appended later,
+      // so a fast (or cached) image can finish loading while wrap.isConnected
+      // is still false. Gating on isConnected here silently threw that image
+      // away and left the placeholder up — which is why the second and
+      // subsequent panels showed no picture. The wrap is a live node either
+      // way; when the panel is appended the image comes with it.
+      wrap.insertBefore(img, wrap.firstChild);
     };
     img.onerror = function() {
-      if (done || !wrap.isConnected) { cleanup(); return; }
+      // Only abandon on a genuine error, never merely because the panel has
+      // not been appended yet — same detached-build trap as onload above.
+      if (done) { cleanup(); return; }
       retryCount++;
       if (retryCount >= MAX_RETRIES) {
         cleanup();
@@ -1455,7 +1610,12 @@ function initCarousel(panelEl, slides) {
   // whenever the current slide is a video, so the clip can play out / loop
   // without being yanked off after 5s. The viewer always swipes or taps a
   // dot to leave a video slide.
+  // On a wide landscape screen every slide is laid out side by side, so
+  // rotating them would just shuffle the layout under the reader. Only run the
+  // timer when the slides are actually stacked. Matches the CSS breakpoint.
+  const sideBySide = window.matchMedia('(min-width: 900px)');
   autoTimer = setInterval(function() {
+    if (sideBySide.matches) return;
     if (!panelEl.classList.contains('active')) return;
     if (slides[ci] && slides[ci].kind === 'video') return;
     goCarousel(ci + 1);
@@ -1496,6 +1656,7 @@ function stopNarration() {
   narEl.onloadedmetadata = null;
   if (narTimeTimer) { clearInterval(narTimeTimer); narTimeTimer = null; }
   if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
+  cancelPendingContinue();
   $narFill.style.transition = 'none';
   $narFill.style.width = '0%';
   $narLabel.textContent = '';
@@ -1508,6 +1669,13 @@ function stopNarration() {
 
 function showContinue() {
   $continuBtn.classList.add('visible');
+}
+function showContinueSoon(ms) {
+  if (continueTimer) clearTimeout(continueTimer);
+  continueTimer = setTimeout(function() { continueTimer = null; showContinue(); }, ms);
+}
+function cancelPendingContinue() {
+  if (continueTimer) { clearTimeout(continueTimer); continueTimer = null; }
 }
 function hideContinue() {
   $continuBtn.classList.remove('visible');
@@ -1563,7 +1731,7 @@ function playNarration(panelView, i, data, startPaused) {
       $narRestartBtn.style.display = '';
     } else {
       // No narration → image held on TV; show Continue promptly
-      setTimeout(showContinue, 800);
+      showContinueSoon(800);
     }
     startTextStagger(panelView);
     return;
@@ -1592,7 +1760,7 @@ function playNarration(panelView, i, data, startPaused) {
     $narFill.style.transition = 'width 0.4s ease';
     $narFill.style.width = '100%';
     revealSentences(panelView, 1);
-    setTimeout(showContinue, 600);
+    showContinueSoon(600);
   };
 
   narEl.ontimeupdate = syncProgress;
@@ -1661,7 +1829,7 @@ async function goToPanel(i) {
   savePosition(i);
   renderNav();
   playNarration(panelView, i, data);
-  if (castSession) castPanel(i, data); // drive TV when casting
+  if (castSession) castPanel(i, data); // drive TV when casting — phone leads, always
 
   // Prefetch neighbours
   if (i + 1 < manifest.panels.length) loadPanel(i + 1).catch(function(){});
@@ -1717,7 +1885,12 @@ function dismissDrawer() {
 }
 $dClose.addEventListener('click', dismissDrawer);
 $dBack.addEventListener('click', dismissDrawer);
-window.addEventListener('popstate', function() { if (drawerOpen) closeDrawer(); });
+window.addEventListener('popstate', function() {
+  // Close whichever overlay the consumed entry belonged to, rather than
+  // letting the navigation fall through and leave the walkthrough.
+  if (drawerOpen) closeDrawer();
+  if (sidebarOpen) closeSidebar();
+});
 
 // ── Music ──────────────────────────────────────────────────────────────────
 function setupMusic() {
@@ -1740,7 +1913,7 @@ function setupMusic() {
 // ── Keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
   if ($drawer.classList.contains('open')) { if (e.key === 'Escape') dismissDrawer(); return; }
-  if ($sidebar.classList.contains('open')) { if (e.key === 'Escape') closeSidebar(); return; }
+  if ($sidebar.classList.contains('open')) { if (e.key === 'Escape') dismissSidebar(); return; }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
     e.preventDefault();
     hideContinue();
@@ -1751,7 +1924,7 @@ document.addEventListener('keydown', function(e) {
     hideContinue();
     goToPanel(currentIdx - 1);
   }
-  if (e.key === 'Escape') closeSidebar();
+  if (e.key === 'Escape') dismissSidebar();
   if (e.key === 'm' || e.key === 'M') $musicBtn.click();
 });
 
@@ -1987,12 +2160,32 @@ function initCastApi() {
         castSession = ctx.getCurrentSession();
         castPlayer  = new cast.framework.RemotePlayer();
         castCtrl    = new cast.framework.RemotePlayerController(castPlayer);
+        // REPEAT_SINGLE should mean the receiver never walks to another item on
+        // its own. Should is not is: if it ever does, follow it rather than let
+        // the phone and the TV silently show different panels.
+        castCtrl.addEventListener(
+          cast.framework.RemotePlayerEventType.MEDIA_INFO_CHANGED,
+          function() {
+            if (!castSession || !castQueueIds.length || castJumpInFlight) return;
+            var media = castSession.getMediaSession();
+            if (!media || media.currentItemId === undefined) return;
+            var idx = castQueueIds.indexOf(media.currentItemId);
+            if (idx >= 0 && idx !== currentIdx) {
+              console.warn('Receiver moved to item', idx, 'on its own — following.');
+              goToPanel(idx);
+            }
+          }
+        );
+
         castCtrl.addEventListener(
           cast.framework.RemotePlayerEventType.PLAYER_STATE_CHANGED,
           function() {
-            if (!castPlayer) return;
+            if (!castPlayer || !castSession) return;
             var st = castPlayer.playerState;
             if (st === chrome.cast.media.PlayerState.PLAYING) {
+              // Something is actually on screen now, so clear any error the
+              // previous attempt left up.
+              setCastStatus('live', 'Casting to ' + castDeviceName());
               // Only a narration clip counts as "media had"; the hold image must
               // not, or its IDLE would be read as a clip-end and re-show Continue.
               if (!castHolding) castMediaHad = true;
@@ -2003,10 +2196,14 @@ function initCastApi() {
                 // advances or disconnects.
                 if (currentIdx >= 0) castHoldImage(currentIdx, panelCache[currentIdx]);
               } else if (castMediaHad) {
-                // Narration clip ended — mirror local narration-end, then hold.
+                // Narration clip ended. The baked cast.mp4 already holds the
+                // panel picture for the rest of its length, so swapping in a
+                // still here is what Graham saw as a single flicker at
+                // narration end (2026-09-15). Show the Continue prompt on the
+                // phone, but do NOT touch the cast session — the TV is only
+                // re-loaded when the viewer actually changes panel.
                 castMediaHad = false;
-                setTimeout(showContinue, 600);
-                if (currentIdx >= 0) castHoldImage(currentIdx, panelCache[currentIdx]);
+                showContinueSoon(600);
               }
             }
           }
@@ -2015,11 +2212,69 @@ function initCastApi() {
       } else if (e.sessionState === cast.framework.SessionState.SESSION_ENDED ||
                  e.sessionState === cast.framework.SessionState.SESSION_START_FAILED) {
         castSession = null; castPlayer = null; castCtrl = null; castMediaHad = false;
+        castQueueIds = []; castQueueLoading = false;
         onCastDisconnected();
       }
     }
   );
 }
+
+// ── Cast status surface ─────────────────────────────────────────────────────
+
+function castDeviceName() {
+  try {
+    var d = castSession && castSession.getCastDevice();
+    if (d && d.friendlyName) return d.friendlyName;
+  } catch (e) {}
+  return 'your TV';
+}
+
+// kind: 'live' (connected, normal) | 'error' (something failed)
+function setCastStatus(kind, text) {
+  if (!$castStatus) return;
+  $castStatus.classList.toggle('error', kind === 'error');
+  $castStatusText.textContent = text;
+  $castStatus.classList.add('visible');
+  // Re-send is the useful action in both states; Stop only makes sense live.
+  $castResend.textContent = kind === 'error' ? 'Retry' : 'Re-send';
+  $castResend.style.display = castSession ? '' : 'none';
+  $castStop.style.display   = castSession ? '' : 'none';
+}
+
+function hideCastStatus() {
+  if (!$castStatus) return;
+  $castStatus.classList.remove('visible', 'error');
+}
+
+function castLoadErrorText(err, wasBaked) {
+  // The common real cause is a panel whose cast.mp4 was never baked, which the
+  // Worker answers with a 404. Name that specifically — a generic failure
+  // message sends the viewer hunting the TV instead of the asset.
+  var code = (err && (err.code || err.errorCode)) || '';
+  if (wasBaked) {
+    return 'This panel has not been prepared for casting yet, so ' +
+           castDeviceName() + ' has nothing to show. Other panels may still work.';
+  }
+  return 'Could not play this panel on ' + castDeviceName() +
+         (code ? ' (' + code + ')' : '') + '. Check the TV is on and the input is right.';
+}
+
+function castResendCurrent() {
+  if (!castSession) { hideCastStatus(); return; }
+  if (currentIdx < 0 || !manifest) return;
+  var data = panelCache[currentIdx];
+  if (!data) return;
+  setCastStatus('live', 'Sending to ' + castDeviceName() + '…');
+  castPanel(currentIdx, data);
+}
+
+if ($castResend) $castResend.addEventListener('click', castResendCurrent);
+if ($castStop) $castStop.addEventListener('click', function() {
+  try {
+    cast.framework.CastContext.getInstance().endCurrentSession(true);
+  } catch (e) { console.warn('Cast endCurrentSession failed:', e); }
+  hideCastStatus();
+});
 
 function updateCastBtn() {
   if (!$castBtn) return;
@@ -2029,8 +2284,103 @@ function updateCastBtn() {
   $castBtn.style.display = castAvailable ? '' : 'none';
 }
 
+// ── Cast queue ──────────────────────────────────────────────────────────────
+//
+// The queue exists for seamless, preloaded panel changes — NOT for auto-advance.
+// Graham's ruling (2026-09-15): "would have it up indefinitely or until
+// disconnect". The phone is the remote and the TV is the display; the picture
+// changes when he changes it and at no other time.
+//
+// REPEAT_SINGLE is what buys that. At the end of an item the receiver repeats
+// that same item instead of walking to the next one, so the panel holds. The
+// baked clip already carries a long silent tail after its narration, so the
+// repeat is not reached in any realistic sitting — and if it ever is, it
+// re-shows the same picture rather than jumping to a different panel.
+//
+// This is why the clip length did NOT change when the queue landed: the tail is
+// the hold mechanism, not a workaround for the old flicker.
+
+function castQueueItem(i) {
+  var panelId = manifest.panels[i].id;
+  var absUrl  = new URL('/api/walkthroughs/' + wid + '/asset/' + panelId + '/cast.mp4',
+                        window.location.origin).href;
+  var mi   = new chrome.cast.media.MediaInfo(absUrl, 'video/mp4');
+  var meta = new chrome.cast.media.GenericMediaMetadata();
+  var p    = manifest.panels[i];
+  meta.title    = p.title    || '';
+  meta.subtitle = p.subtitle || '';
+  mi.metadata   = meta;
+  var item = new chrome.cast.media.QueueItem(mi);
+  item.autoplay = true;
+  return item;
+}
+
+function castLoadQueue(startIdx) {
+  if (!castSession || !manifest || castQueueLoading) return false;
+  // Only worth queueing when the walkthrough is actually baked; otherwise every
+  // item would 404 and the queue would be worse than the single-load path.
+  if (!(manifest.cast_baked || (panelCache[startIdx] && panelCache[startIdx].narration))) {
+    return false;
+  }
+  var sessionObj;
+  try { sessionObj = castSession.getSessionObj(); } catch (e) { return false; }
+  if (!sessionObj || typeof sessionObj.queueLoad !== 'function') return false;
+
+  var items = [];
+  for (var i = 0; i < manifest.panels.length; i++) items.push(castQueueItem(i));
+
+  var req = new chrome.cast.media.QueueLoadRequest(items);
+  req.startIndex = Math.max(0, startIdx);
+  // The whole point: hold, never advance.
+  req.repeatMode = chrome.cast.media.RepeatMode.SINGLE;
+
+  castQueueLoading = true;
+  sessionObj.queueLoad(req, function() {
+    castQueueLoading = false;
+    var media = castSession && castSession.getMediaSession();
+    castQueueIds = (media && media.items) ? media.items.map(function(it) { return it.itemId; }) : [];
+    if (!castQueueIds.length) {
+      // Queue reported success but gave us no item ids — we cannot drive it, so
+      // fall back rather than pretend.
+      console.warn('Cast queue loaded with no item ids; falling back to single loads.');
+      var d = panelCache[currentIdx];
+      if (d) castPanel(currentIdx, d);
+      return;
+    }
+    setCastStatus('live', 'Casting to ' + castDeviceName());
+  }, function(err) {
+    castQueueLoading = false;
+    castQueueIds = [];
+    console.warn('Cast queueLoad failed, falling back to single loads:', err);
+    var d = panelCache[currentIdx];
+    if (d) castPanel(currentIdx, d);
+  });
+  return true;
+}
+
+// Returns true when the TV was driven via the queue, false to fall through to
+// the per-panel loadMedia path.
+function castJumpTo(i) {
+  if (!castSession || !castQueueIds.length) return false;
+  var itemId = castQueueIds[i];
+  if (itemId === undefined) return false;
+  var media = castSession.getMediaSession();
+  if (!media || typeof media.queueJumpToItem !== 'function') return false;
+  castJumpInFlight = true;
+  setTimeout(function() { castJumpInFlight = false; }, 2500);
+  media.queueJumpToItem(itemId, function() {
+    setCastStatus('live', 'Casting to ' + castDeviceName());
+  }, function(err) {
+    console.warn('Cast queueJumpToItem failed:', err);
+    setCastStatus('error', castLoadErrorText(err, true));
+  });
+  return true;
+}
+
 function castPanel(i, data) {
   if (!castSession) return;
+  // Queue first — a jump is preloaded and seamless where a fresh loadMedia is not.
+  if (castJumpTo(i)) return;
   var panelId = manifest.panels[i].id;
 
   // Cast the pre-baked cast.mp4 when the panel has narration OR the walkthrough
@@ -2077,12 +2427,17 @@ function castPanel(i, data) {
   var attempts = 0;
   (function attempt() {
     if (!castSession) return; // session ended while waiting
+    if (attempts > 0) setCastStatus('live', 'Retrying on ' + castDeviceName() + '…');
     castSession.loadMedia(req).catch(function(err) {
       attempts++;
       if (attempts <= 4 && castSession) {
         setTimeout(attempt, attempts * 1500);
       } else {
+        // This used to be a bare console.warn. A panel with no baked cast.mp4
+        // then looked exactly like a TV that was switched off — which is how a
+        // whole live test got wasted (2026-09-15). Say it on screen.
         console.warn('Cast loadMedia failed after retries:', err);
+        setCastStatus('error', castLoadErrorText(err, baked));
       }
     });
   })();
@@ -2115,6 +2470,7 @@ function castHoldImage(i, data) {
 
 function onCastConnected() {
   updateCastBtn();
+  setCastStatus('live', 'Casting to ' + castDeviceName());
   stopNarration(); // stop local audio immediately
   if (currentIdx >= 0 && manifest) {
     var data = panelCache[currentIdx];
@@ -2126,20 +2482,45 @@ function onCastConnected() {
         $narPauseBtn.style.display = '';
         $narRestartBtn.style.display = '';
       }
-      castPanel(currentIdx, data);
+      // Try the queue first; castLoadQueue falls back to a single load itself if
+      // the receiver will not take one.
+      if (!castLoadQueue(currentIdx)) castPanel(currentIdx, data);
     }
   }
 }
 
 function onCastDisconnected() {
   updateCastBtn();
+  hideCastStatus();
   castHolding = false;
-  // Return to the phone paused at the current panel — don't auto-read aloud.
+
+  // Anything still queued from the cast session — a deferred Continue, the
+  // narration-end timer — must not survive the teardown. Graham disconnected and
+  // the phone started reading aloud from the top (2026-09-15); an orphaned timer
+  // firing after the session object was already gone is the shape of that.
+  cancelPendingContinue();
+  if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
+
+  // Stay on the current panel, paused. Do not restart the walkthrough, do not
+  // autoplay locally.
   if (currentIdx >= 0 && manifest) {
-    var pv   = $stage.querySelector('.panel-view.active');
+    var pv   = $stage.querySelector('.panel-view.active') ||
+               $stage.querySelector('.panel-view.settling');
     var data = panelCache[currentIdx];
     if (pv && data) playNarration(pv, currentIdx, data, true);
   }
+
+  // Belt and braces: whatever the path above did, the phone ends up paused at
+  // the current position with the play control offering to resume. This is the
+  // state Graham asked for, asserted rather than assumed.
+  narEl.pause();
+  narPaused = true;
+  if (panelCache[currentIdx] && panelCache[currentIdx].narration) {
+    $narPauseBtn.textContent = '▶';
+    $narPauseBtn.style.display = '';
+    $narRestartBtn.style.display = '';
+  }
+  hideContinue();
 }
 
 // The <google-cast-launcher> element handles the connect/disconnect dialog and
