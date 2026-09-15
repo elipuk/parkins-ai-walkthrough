@@ -1192,12 +1192,28 @@ const $resumeYes     = document.getElementById('resume-yes');
 const $resumeNo      = document.getElementById('resume-no');
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
-function openSidebar()  { $sidebar.classList.add('open'); $sbBack.classList.add('open'); }
-function closeSidebar() { $sidebar.classList.remove('open'); $sbBack.classList.remove('open'); }
+// The sidebar is an overlay like the article drawer, so it joins the history
+// stack the same way: opening pushes an entry, browser-back consumes it and
+// closes the menu instead of walking the reader out of the walkthrough.
+let sidebarOpen = false;
+function openSidebar()  {
+  $sidebar.classList.add('open'); $sbBack.classList.add('open');
+  if (!sidebarOpen) { sidebarOpen = true; history.pushState({ sidebar: true }, ''); }
+}
+function closeSidebar() {
+  $sidebar.classList.remove('open'); $sbBack.classList.remove('open');
+  sidebarOpen = false;
+}
+// User-initiated close walks history back so the pushed entry is consumed,
+// mirroring dismissDrawer. Falls back to a direct close if the entry isn't ours.
+function dismissSidebar() {
+  if (sidebarOpen && history.state && history.state.sidebar) { history.back(); }
+  else { closeSidebar(); }
+}
 
 $mapBtn.addEventListener('click', openSidebar);
-$sbClose.addEventListener('click', closeSidebar);
-$sbBack.addEventListener('click', closeSidebar);
+$sbClose.addEventListener('click', dismissSidebar);
+$sbBack.addEventListener('click', dismissSidebar);
 
 function renderNav() {
   const panels = manifest.panels;
@@ -1238,7 +1254,7 @@ function renderNav() {
   $navList.querySelectorAll('.nav-item').forEach(function(el) {
     el.addEventListener('click', function() {
       const i = parseInt(el.dataset.i, 10);
-      closeSidebar();
+      dismissSidebar();
       if (i !== currentIdx) goToPanel(i);
     });
   });
@@ -1807,7 +1823,12 @@ function dismissDrawer() {
 }
 $dClose.addEventListener('click', dismissDrawer);
 $dBack.addEventListener('click', dismissDrawer);
-window.addEventListener('popstate', function() { if (drawerOpen) closeDrawer(); });
+window.addEventListener('popstate', function() {
+  // Close whichever overlay the consumed entry belonged to, rather than
+  // letting the navigation fall through and leave the walkthrough.
+  if (drawerOpen) closeDrawer();
+  if (sidebarOpen) closeSidebar();
+});
 
 // ── Music ──────────────────────────────────────────────────────────────────
 function setupMusic() {
@@ -1830,7 +1851,7 @@ function setupMusic() {
 // ── Keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
   if ($drawer.classList.contains('open')) { if (e.key === 'Escape') dismissDrawer(); return; }
-  if ($sidebar.classList.contains('open')) { if (e.key === 'Escape') closeSidebar(); return; }
+  if ($sidebar.classList.contains('open')) { if (e.key === 'Escape') dismissSidebar(); return; }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
     e.preventDefault();
     hideContinue();
@@ -1841,7 +1862,7 @@ document.addEventListener('keydown', function(e) {
     hideContinue();
     goToPanel(currentIdx - 1);
   }
-  if (e.key === 'Escape') closeSidebar();
+  if (e.key === 'Escape') dismissSidebar();
   if (e.key === 'm' || e.key === 'M') $musicBtn.click();
 });
 
