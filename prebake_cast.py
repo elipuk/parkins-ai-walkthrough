@@ -60,7 +60,7 @@ FRAME_H = 1080
 # Bumped when the bake changes in a way that makes existing files stale.
 # Written into the MP4 comment; with +faststart the moov atom carrying it sits at
 # the head of the file, so a small Range read can tell current from stale.
-BAKE_STAMP = f"castbake-v2-{FRAME_W}x{FRAME_H}"
+BAKE_STAMP = f"castbake-v3-{FRAME_W}x{FRAME_H}"
 
 
 # Walkthroughs with an entry_code serve a *stub* manifest with no panels[] unless
@@ -221,6 +221,18 @@ def bake_cast(images: list[Path], audio: Path | None, out: Path, workdir: Path) 
     if audio is not None:
         cmd += ["-i", str(audio)]
     cmd += [
+        # The concat demuxer's last frame has no successor, so the video stream
+        # stopped one frame short: 599 frames for a 600 s clip. With narration,
+        # -af apad padded the audio to the full 600 s, leaving a final second of
+        # audio with no video behind it — a gap the receiver has to guess at.
+        # Cloning the last frame past the end lets -t truncate all streams on the
+        # same timestamp instead.
+        # ...and fps= re-times the result onto a strict CFR grid. tpad alone was
+        # not enough: the concat demuxer's timestamps meant -t still cut the
+        # video early (measured: 599 frames / 599.000 s against 600.000 s of
+        # audio). tpad,fps together give 600 frames and one end timestamp for
+        # video, audio and container alike.
+        "-vf", f"tpad=stop_mode=clone:stop_duration=2,fps={HOLD_FPS}",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-r", str(HOLD_FPS),
         "-crf", "28", "-preset", "veryfast",
