@@ -535,7 +535,58 @@ html, body {
 @media (min-width: 900px) and (orientation: landscape) {
   .panel-view { flex-direction: row; }
   .panel-img-section { flex: 0 0 56%; height: 100%; }
-  .panel-img-wrap img { object-fit: contain; }
+  /* Beat the base `cover` rule for carousel slides too — the plain
+     `.panel-img-wrap img` selector ties with it on specificity, and a carousel
+     slide is still a .panel-img-wrap, so the crop was surviving into desktop. */
+  .panel-img-wrap img,
+  .carousel-track .panel-img-wrap img { object-fit: contain; }
+
+  /* ── Side-by-side, instead of rotating ──────────────────────────────────
+     The art is 4:5 portrait. One portrait image in a wide box wastes half the
+     screen; two of them side by side is 8:5, almost exactly widescreen. So on
+     desktop the carousel stops being a carousel and becomes a gallery: every
+     slide visible at once, each fitted whole, nothing cropped and nothing
+     hidden behind a timer. The auto-advance still ticks and still toggles
+     .cur — it simply has nothing left to hide, so it is harmless here rather
+     than needing a second code path. Mobile portrait and the baked cast video
+     are untouched. */
+  .carousel-track {
+    display: flex; flex-direction: row;
+    align-items: center; justify-content: center;
+    gap: 10px; padding: 10px;
+  }
+  .carousel-track .panel-img-wrap {
+    position: relative; inset: auto;
+    flex: 1 1 0; min-width: 0; height: 100%;
+    opacity: 1; z-index: auto;
+  }
+  /* Dots address slides the viewer can already see — drop them. */
+  .carousel-dots { display: none; }
+
+  /* Bold layout (Graham, 2026-09-15): on a wide screen there is room for the
+     whole set at once, so stop rotating and lay the panel's images out side by
+     side. The art is 4:5 portrait — two of them abreast is ~8:5, which is
+     almost exactly a widescreen box, so the column fills properly instead of
+     leaving a tall picture stranded in a short-and-wide frame.
+     The carousel still exists underneath; it is simply not needed here, and
+     auto-advance is disabled below so the layout does not shuffle itself. */
+  .carousel-track {
+    display: flex; flex-direction: row; align-items: center;
+    gap: 10px; padding: 0 10px;
+  }
+  .carousel-track .panel-img-wrap {
+    position: relative; inset: auto;
+    flex: 1 1 0; min-width: 0; height: 100%;
+    opacity: 1; z-index: 0;
+  }
+  /* .cur carries no meaning when every slide is on screen at once. */
+  .carousel-track .panel-img-wrap.cur { opacity: 1; z-index: 0; }
+  .carousel-dots { display: none; }
+
+  /* Nothing may overflow the column — the failure Graham reported was the
+     contact sheet running off the bottom of the screen. */
+  .panel-img-section, .carousel-track { overflow: hidden; }
+  .panel-img-wrap img { max-width: 100%; max-height: 100%; }
   /* No text sits below the image in split mode — drop the bottom blend fade. */
   .panel-img-section::after { display: none; }
   .panel-text-section {
@@ -1553,7 +1604,12 @@ function initCarousel(panelEl, slides) {
   // whenever the current slide is a video, so the clip can play out / loop
   // without being yanked off after 5s. The viewer always swipes or taps a
   // dot to leave a video slide.
+  // On a wide landscape screen every slide is laid out side by side, so
+  // rotating them would just shuffle the layout under the reader. Only run the
+  // timer when the slides are actually stacked. Matches the CSS breakpoint.
+  const sideBySide = window.matchMedia('(min-width: 900px) and (orientation: landscape)');
   autoTimer = setInterval(function() {
+    if (sideBySide.matches) return;
     if (!panelEl.classList.contains('active')) return;
     if (slides[ci] && slides[ci].kind === 'video') return;
     goCarousel(ci + 1);
