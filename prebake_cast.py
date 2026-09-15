@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.parse
 import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -56,6 +57,32 @@ PER_IMAGE_SECONDS = 5
 # are padded into the frame, never upscaled past their own resolution.
 FRAME_W = 1920
 FRAME_H = 1080
+# Bumped when the bake changes in a way that makes existing files stale.
+# Written into the MP4 comment; with +faststart the moov atom carrying it sits at
+# the head of the file, so a small Range read can tell current from stale.
+BAKE_STAMP = f"castbake-v2-{FRAME_W}x{FRAME_H}"
+
+
+# Walkthroughs with an entry_code serve a *stub* manifest with no panels[] unless
+# the right ?code= is supplied. That is why Munich and the wedding were never
+# baked even once the hardcoded list was gone: the run saw zero panels and
+# reported success. Codes are not in the stub (by design — the Worker strips
+# entry_code before sending), so they come from the local authoring copy.
+CODE_SEARCH_DIRS = ("content", "demo")
+
+
+def local_entry_code(wid: str) -> str | None:
+    """Entry code for a walkthrough, from whichever local manifest has one."""
+    for d in CODE_SEARCH_DIRS:
+        mf = Path(__file__).parent / d / wid / "manifest.json"
+        if mf.is_file():
+            try:
+                code = json.loads(mf.read_text()).get("entry_code")
+            except Exception:
+                continue
+            if code:
+                return str(code)
+    return None
 
 
 def all_walkthroughs() -> list[str]:
@@ -131,7 +158,13 @@ def _normalize(image: Path, out: Path) -> bool:
     cmd = [
         FFMPEG, "-y", "-i", str(image),
         "-vf", (
-            f"scale={FRAME_W}:{FRAME_H}:force_original_aspect_ratio=decrease,"
+            # min(FRAME,i*) gives the box a lower bound, so this only ever
+            # scales *down*. Without it, force_original_aspect_ratio=decrease
+            # happily enlarges a small source to fill the frame — a 640x480
+            # photo came out at 1440x1080, i.e. 2.25x of invented detail.
+            # Sources under 1080p now sit at native size inside the pad.
+            f"scale=w='min({FRAME_W},iw)':h='min({FRAME_H},ih)'"
+            f":force_original_aspect_ratio=decrease:force_divisible_by=2,"
             f"pad={FRAME_W}:{FRAME_H}:(ow-iw)/2:(oh-ih)/2,setsar=1"
         ),
         "-frames:v", "1", str(out),
@@ -197,6 +230,11 @@ def bake_cast(images: list[Path], audio: Path | None, out: Path, workdir: Path) 
         cmd += ["-c:a", "aac", "-b:a", "128k", "-af", "apad"]
     cmd += [
         "-t", str(HOLD_SECONDS),
+        # Stamp what this bake is, and put the moov atom at the head so the
+        # stamp can be read from the first few KB rather than by pulling the
+        # whole file. Faststart also helps the receiver start playing sooner.
+        "-metadata", f"comment={BAKE_STAMP}",
+        "-movflags", "+faststart",
         str(out),
     ]
     result = subprocess.run(cmd, capture_output=True)
@@ -272,19 +310,37 @@ def process_walkthrough(
     panel_filter: str | None,
     jobs: int,
     cf_token: str,
+    entry_code: str | None = None,
 ) -> tuple[int, int, int]:
     """Returns (ok, skipped, failed) counts."""
     log(f"\n{'='*60}")
     log(f"Walkthrough: {walkthrough_id}")
     log(f"{'='*60}")
 
+    code = entry_code or local_entry_code(walkthrough_id)
+    manifest_url = f"{WORKER_BASE}/api/walkthroughs/{walkthrough_id}"
+    if code:
+        manifest_url += f"?code={urllib.parse.quote(code)}"
+
     try:
-        manifest = fetch_json(f"{WORKER_BASE}/api/walkthroughs/{walkthrough_id}")
+        manifest = fetch_json(manifest_url)
     except Exception as exc:
         log(f"  ERROR: could not fetch manifest: {exc}")
-        return 0, 0, 0
+        return 0, 0, 1
+
+    # Loudly, not silently. A gated walkthrough answers with a stub and no
+    # panels; treating that as "nothing to do" is precisely the silent gap this
+    # whole exercise exists to close.
+    if manifest.get("code_required"):
+        log(f"  ERROR: {walkthrough_id} is entry-code gated and no code was found.")
+        log(f"         Pass --code, or add entry_code to a local manifest under "
+            f"{'/, '.join(CODE_SEARCH_DIRS)}/{walkthrough_id}/manifest.json")
+        return 0, 0, 1
 
     panels = manifest.get("panels", [])
+    if not panels:
+        log(f"  ERROR: {walkthrough_id} returned a manifest with no panels.")
+        return 0, 0, 1
     if panel_filter:
         panels = [p for p in panels if p["id"] == panel_filter]
         if not panels:
@@ -328,6 +384,9 @@ def main() -> None:
                         help="Single panel ID within the walkthrough")
     parser.add_argument("--jobs", type=int, default=4,
                         help="Parallel worker count (default: 4)")
+    parser.add_argument("--code", default=None,
+                        help="Entry code for a gated walkthrough (default: read "
+                             "from the local authoring manifest)")
     args = parser.parse_args()
 
     cf_token = get_cf_token()
@@ -336,7 +395,8 @@ def main() -> None:
 
     total_ok = total_skip = total_fail = 0
     for wid in walkthroughs:
-        ok, skip, fail = process_walkthrough(wid, args.panel, args.jobs, cf_token)
+        ok, skip, fail = process_walkthrough(
+            wid, args.panel, args.jobs, cf_token, args.code)
         total_ok   += ok
         total_skip += skip
         total_fail += fail
