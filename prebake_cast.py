@@ -26,6 +26,7 @@ import tempfile
 import threading
 import urllib.parse
 import urllib.request
+import uuid
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -148,6 +149,96 @@ def r2_upload(local: Path, r2_key: str, cf_token: str) -> None:
         cmd, shell=True, cwd=Path(__file__).parent, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
     )
+
+
+def verify_uploaded(walkthrough_id: str, panel_id: str, expect_bytes: int) -> str | None:
+    """Confirm the asset is really being served. Returns None on success, else why not.
+
+    An upload that exits 0 proves nothing — wrangler can exit 0 unauthenticated,
+    and a stale edge cache can answer for an object that was never written. So the
+    check is made against the live route, cache-busted, and asserts the *size* the
+    Worker reports rather than merely that something came back.
+
+    Costs one KB, not one clip: the asset route honours Range, so a 0-1023 read
+    returns 206 and a Content-Range carrying the true total length."""
+    url = (f"{WORKER_BASE}/api/walkthroughs/{walkthrough_id}/asset/{panel_id}"
+           f"/cast.mp4?v={uuid.uuid4().hex}")
+    req = urllib.request.Request(url, headers={**_HEADERS, "Range": "bytes=0-1023"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            status = resp.status
+            crange = resp.headers.get("Content-Range") or ""
+            body_len = len(resp.read())
+    except urllib.error.HTTPError as exc:
+        return f"HTTP {exc.code}"
+    except Exception as exc:
+        return f"unreachable: {exc}"
+
+    if status == 206 and "/" in crange:
+        try:
+            served = int(crange.rsplit("/", 1)[1])
+        except ValueError:
+            return f"unparseable Content-Range {crange!r}"
+    elif status == 200:
+        # Range ignored (older Worker): fall back to what actually arrived.
+        served = body_len
+    else:
+        return f"unexpected status {status}"
+
+    if served != expect_bytes:
+        return f"served {served} B, expected {expect_bytes} B"
+    # A JSON error body is ~21 bytes; a real clip is not.
+    if served < 10240:
+        return f"implausibly small ({served} B)"
+    return None
+
+
+def probe_served(walkthrough_id: str, panel_id: str) -> tuple[bool, str]:
+    """Is this panel's cast.mp4 actually being served? Returns (ok, detail).
+
+    Used by --verify-only to audit a walkthrough without re-baking it. The bar is
+    the one the job was set: HTTP 200/206 and a plausible size, not a 21-byte
+    JSON error. One KB on the wire per panel, via Range."""
+    url = (f"{WORKER_BASE}/api/walkthroughs/{walkthrough_id}/asset/{panel_id}"
+           f"/cast.mp4?v={uuid.uuid4().hex}")
+    req = urllib.request.Request(url, headers={**_HEADERS, "Range": "bytes=0-1023"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            crange = resp.headers.get("Content-Range") or ""
+            served = (int(crange.rsplit("/", 1)[1])
+                      if resp.status == 206 and "/" in crange else len(resp.read()))
+    except urllib.error.HTTPError as exc:
+        return False, f"HTTP {exc.code}"
+    except Exception as exc:
+        return False, f"unreachable: {exc}"
+    if served < 10240:
+        return False, f"implausibly small ({served} B)"
+    return True, f"{served // 1024} KB"
+
+
+def verify_only(walkthrough_id: str, entry_code: str | None) -> tuple[int, int]:
+    """Audit every panel of a walkthrough over HTTP. Returns (verified, missing)."""
+    code = entry_code or local_entry_code(walkthrough_id)
+    url = f"{WORKER_BASE}/api/walkthroughs/{walkthrough_id}"
+    if code:
+        url += f"?code={urllib.parse.quote(code)}"
+    manifest = fetch_json(url)
+    if manifest.get("code_required"):
+        log(f"  ERROR: {walkthrough_id} is gated and no code was found.")
+        return 0, 0
+    panels = manifest.get("panels", [])
+    good = bad = 0
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futs = {pool.submit(probe_served, walkthrough_id, p["id"]): p["id"] for p in panels}
+        for fut in as_completed(futs):
+            ok, detail = fut.result()
+            if ok:
+                good += 1
+            else:
+                bad += 1
+                log(f"    MISSING [{futs[fut]}] — {detail}")
+    log(f"  {walkthrough_id}: {good}/{len(panels)} verified over HTTP, {bad} missing")
+    return good, bad
 
 
 # ── ffmpeg bake ───────────────────────────────────────────────────────────────
@@ -304,12 +395,18 @@ def process_panel(walkthrough_id: str, panel_id: str, cf_token: str) -> str:
         if not bake_cast(image_locals, audio_arg, cast_local, tmpdir):
             return f"[{panel_id}] FAIL — ffmpeg"
 
-        size_kb = cast_local.stat().st_size // 1024
+        local_bytes = cast_local.stat().st_size
+        size_kb = local_bytes // 1024
         r2_key = f"walkthroughs/{walkthrough_id}/panels/{panel_id}/cast.mp4"
         try:
             r2_upload(cast_local, r2_key, cf_token)
         except subprocess.CalledProcessError:
             return f"[{panel_id}] FAIL — R2 upload"
+
+        # Not "uploaded" — *serving*. This is the only line that earns the word.
+        why = verify_uploaded(walkthrough_id, panel_id, local_bytes)
+        if why:
+            return f"[{panel_id}] FAIL — not served after upload ({why})"
 
     title = panel.get("title", panel_id)
     return f"[{panel_id}] OK — {title} ({size_kb} KB)"
@@ -382,7 +479,13 @@ def process_walkthrough(
     ok    = sum(1 for r in results if " OK "   in r)
     skip  = sum(1 for r in results if " SKIP " in r)
     fail  = sum(1 for r in results if " FAIL " in r)
-    log(f"\n  → {ok} baked, {skip} skipped (no nar/image), {fail} failed")
+    log(f"\n  → {ok} verified over HTTP, {skip} skipped (no nar/image), {fail} failed")
+
+    # The counts must add up to the panels we set out to do. If they do not,
+    # something was dropped silently and the run is not a success.
+    if ok + skip + fail != len(panels):
+        log(f"  ERROR: {len(panels)} panels in, but only {ok + skip + fail} accounted for.")
+        fail += len(panels) - (ok + skip + fail)
     return ok, skip, fail
 
 
@@ -396,14 +499,25 @@ def main() -> None:
                         help="Single panel ID within the walkthrough")
     parser.add_argument("--jobs", type=int, default=4,
                         help="Parallel worker count (default: 4)")
+    parser.add_argument("--verify-only", action="store_true",
+                        help="Audit which panels are actually served; bake nothing")
     parser.add_argument("--code", default=None,
                         help="Entry code for a gated walkthrough (default: read "
                              "from the local authoring manifest)")
     args = parser.parse_args()
 
-    cf_token = get_cf_token()
-
     walkthroughs = [args.walkthrough] if args.walkthrough else all_walkthroughs()
+
+    if args.verify_only:
+        log("Verifying served cast.mp4 assets (no baking)\n")
+        tg = tb = 0
+        for wid in walkthroughs:
+            g, b = verify_only(wid, args.code)
+            tg += g; tb += b
+        log(f"\nTOTAL: {tg} verified, {tb} missing")
+        sys.exit(1 if tb else 0)
+
+    cf_token = get_cf_token()
 
     total_ok = total_skip = total_fail = 0
     for wid in walkthroughs:
@@ -416,6 +530,14 @@ def main() -> None:
     log(f"\n{'='*60}")
     log(f"TOTAL: {total_ok} baked, {total_skip} skipped, {total_fail} failed")
     log(f"{'='*60}")
+
+    # A run that baked nothing at all is a failure, not a no-op. This is the
+    # guard that would have caught Munich and the wedding on day one: the gated
+    # manifest returned zero panels, so zero were baked, and the run exited 0.
+    if total_ok == 0 and total_skip == 0:
+        log("ERROR: nothing was baked and nothing was skipped — "
+            "the run did no work. Treating as failure.")
+        sys.exit(1)
 
     if total_fail > 0:
         sys.exit(1)
