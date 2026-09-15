@@ -2062,10 +2062,14 @@ function initCastApi() {
                 // advances or disconnects.
                 if (currentIdx >= 0) castHoldImage(currentIdx, panelCache[currentIdx]);
               } else if (castMediaHad) {
-                // Narration clip ended — mirror local narration-end, then hold.
+                // Narration clip ended. The baked cast.mp4 already holds the
+                // panel picture for the rest of its length, so swapping in a
+                // still here is what Graham saw as a single flicker at
+                // narration end (2026-09-15). Show the Continue prompt on the
+                // phone, but do NOT touch the cast session — the TV is only
+                // re-loaded when the viewer actually changes panel.
                 castMediaHad = false;
                 setTimeout(showContinue, 600);
-                if (currentIdx >= 0) castHoldImage(currentIdx, panelCache[currentIdx]);
               }
             }
           }

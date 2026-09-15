@@ -77,3 +77,51 @@ Remaining work for cast, in order:
    gating is **live but uncommitted** — deployed tree is ahead of git. Commit it.
 4. **Never verified on an actual TV**, as far as the record shows. Chrome → Google
    Cast only, per the 2026-05-30 scope decision; no AirPlay.
+
+## 2026-09-15 — Graham (chat): stream-on-the-fly instead of per-panel media
+
+Graham's idea: rather than loading a discrete `cast.mp4` per panel, have a
+Cloudflare Worker produce a *continuous* stream — hold the current image as the
+video, play the queued audio over it, and push new images/audio into the stream
+at chosen points. "Video on the fly."
+
+**Why it's the right instinct.** The per-panel media model makes the TV a
+passive player: each advance is a fresh media load, with a receiver
+state-change and a visible seam. A continuous stream makes the TV a *display*
+and the phone a *remote* — which is what casting a walkthrough should feel like.
+
+**What doesn't work.** A Worker cannot encode video. No native binaries, JS/WASM
+only, 128 MB per isolate — real-time transcoding is off the table. And
+Cloudflare Stream Live is the wrong shape too: it accepts RTMPS/SRT from an
+**external encoder** pushing a feed, and a Worker cannot be that encoder.
+
+**What does work.** A live HLS stream is, on the wire, a text playlist plus
+segment files. The Worker never has to *make* video — it has to *author the
+playlist*. So:
+
+1. Pre-encode each panel into HLS segments (a re-cut of the existing prebake,
+   same ffmpeg step, different output container).
+2. The Worker serves a rolling `EXT-X-PLAYLIST-TYPE:EVENT` playlist.
+3. Advancing a panel appends that panel's segments to the playlist. The TV keeps
+   pulling and simply continues.
+
+This fits the platform properly: Workers have no enforced response-body limit
+and no request-duration cap while a client stays connected, and CPU time is only
+counted for actual compute — playlist authoring is string work.
+
+Per-session state (current panel, what's queued, who's driving) wants a
+**Durable Object**, one per cast session.
+
+**Costs to weigh before building:**
+
+- **Latency.** Live HLS lags by roughly segment-duration x buffer depth — expect
+  2-6 s between "next" on the phone and the TV moving. Shorter segments cut it
+  at the price of more requests.
+- **Join discipline.** Every segment must share codec, resolution, timebase and
+  audio parameters or the TV glitches at the joins. One encoder config, applied
+  everywhere, non-negotiable.
+- **It is a real build**, materially larger than the prebake. The prebake
+  already delivers "play a walkthrough on the telly". This buys *control* —
+  drive, pause, jump, live-advance — not basic playback.
+
+Not scheduled. Captured for weighing against the prebake work now in flight.
