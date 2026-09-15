@@ -568,14 +568,59 @@ html, body {
 #offline-btn.saving { color: var(--accent); opacity: 0.65; cursor: default; border-color: rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.35); }
 #offline-btn.saved  { border-color: var(--accent); color: var(--accent); cursor: default; }
 
-/* ── Cast button (standard Google Cast launcher) ───────────────────────────── */
+/* ── Cast button (standard Google Cast launcher) ─────────────────────────────
+   The launcher draws Google's own icon; these two custom properties are the
+   only supported way to colour it. --muted is 42% alpha, which washed the icon
+   out badly enough that Graham did not recognise it as the Cast icon at all
+   (live test, 2026-09-15). Disconnected is now full-strength --text — the
+   standard white glyph — and only *hover* dims. Connected stays accent so the
+   two states still read apart at a glance. */
 #cast-btn {
   width: 28px; height: 28px; cursor: pointer; flex-shrink: 0;
   --connected-color: var(--accent);
-  --disconnected-color: var(--muted);
+  --disconnected-color: var(--text);
   transition: opacity 0.2s;
 }
-#cast-btn:hover { opacity: 0.8; }
+#cast-btn:hover { opacity: 0.7; }
+
+/* ── Cast status bar ─────────────────────────────────────────────────────────
+   Once a session exists there was no visible sign of it and no way to re-send
+   the current panel, so a failed loadMedia looked identical to a TV that was
+   simply off. This bar is that missing feedback surface. */
+#cast-status {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  top: calc(var(--header-h) + 8px); z-index: 60;
+  display: none; align-items: center; gap: 10px;
+  max-width: min(92vw, 560px);
+  padding: 8px 14px;
+  background: rgba(22, 22, 37, 0.94);
+  border: 1px solid rgba(var(--accent-r),var(--accent-g),var(--accent-b),0.45);
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  font-family: var(--font-body); font-size: 0.78rem; color: var(--text);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+#cast-status.visible { display: flex; }
+#cast-status.error {
+  border-color: rgba(255, 96, 96, 0.75);
+  background: rgba(48, 18, 18, 0.95);
+}
+#cast-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent);
+  animation: cast-pulse 1.8s ease-in-out infinite;
+}
+#cast-status.error #cast-status-dot { background: #ff6060; animation: none; }
+@keyframes cast-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+#cast-status-text { flex: 1; min-width: 0; line-height: 1.35; }
+#cast-status .cast-status-btn {
+  flex-shrink: 0; cursor: pointer;
+  background: transparent; color: var(--text);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 4px 11px; font-family: var(--font-body); font-size: 0.72rem;
+  transition: border-color 0.2s, color 0.2s;
+}
+#cast-status .cast-status-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Carousel (multi-image panels) ─────────────────────────────────────────── */
 .carousel-track {
@@ -794,6 +839,13 @@ html, body {
   <button id="music-btn" style="display:none">♪ Music</button>
   <button id="offline-btn" aria-label="Save for offline"></button>
 </header>
+
+<div id="cast-status" role="status" aria-live="polite">
+  <span id="cast-status-dot"></span>
+  <span id="cast-status-text"></span>
+  <button id="cast-resend" class="cast-status-btn" type="button">Re-send</button>
+  <button id="cast-stop" class="cast-status-btn" type="button">Stop</button>
+</div>
 
 <div id="stage"></div>
 
@@ -1100,6 +1152,10 @@ const $dClose     = document.getElementById('drawer-close');
 const $dBack      = document.getElementById('drawer-back');
 const $musicBtn   = document.getElementById('music-btn');
 const $castBtn    = document.getElementById('cast-btn');
+const $castStatus = document.getElementById('cast-status');
+const $castStatusText = document.getElementById('cast-status-text');
+const $castResend = document.getElementById('cast-resend');
+const $castStop   = document.getElementById('cast-stop');
 const $offlineBtn = document.getElementById('offline-btn');
 const $mapBtn     = document.getElementById('map-btn');
 const $sidebar    = document.getElementById('sidebar');
@@ -1993,6 +2049,9 @@ function initCastApi() {
             if (!castPlayer) return;
             var st = castPlayer.playerState;
             if (st === chrome.cast.media.PlayerState.PLAYING) {
+              // Something is actually on screen now, so clear any error the
+              // previous attempt left up.
+              setCastStatus('live', 'Casting to ' + castDeviceName());
               // Only a narration clip counts as "media had"; the hold image must
               // not, or its IDLE would be read as a clip-end and re-show Continue.
               if (!castHolding) castMediaHad = true;
@@ -2020,6 +2079,63 @@ function initCastApi() {
     }
   );
 }
+
+// ── Cast status surface ─────────────────────────────────────────────────────
+
+function castDeviceName() {
+  try {
+    var d = castSession && castSession.getCastDevice();
+    if (d && d.friendlyName) return d.friendlyName;
+  } catch (e) {}
+  return 'your TV';
+}
+
+// kind: 'live' (connected, normal) | 'error' (something failed)
+function setCastStatus(kind, text) {
+  if (!$castStatus) return;
+  $castStatus.classList.toggle('error', kind === 'error');
+  $castStatusText.textContent = text;
+  $castStatus.classList.add('visible');
+  // Re-send is the useful action in both states; Stop only makes sense live.
+  $castResend.textContent = kind === 'error' ? 'Retry' : 'Re-send';
+  $castResend.style.display = castSession ? '' : 'none';
+  $castStop.style.display   = castSession ? '' : 'none';
+}
+
+function hideCastStatus() {
+  if (!$castStatus) return;
+  $castStatus.classList.remove('visible', 'error');
+}
+
+function castLoadErrorText(err, wasBaked) {
+  // The common real cause is a panel whose cast.mp4 was never baked, which the
+  // Worker answers with a 404. Name that specifically — a generic failure
+  // message sends the viewer hunting the TV instead of the asset.
+  var code = (err && (err.code || err.errorCode)) || '';
+  if (wasBaked) {
+    return 'This panel has not been prepared for casting yet, so ' +
+           castDeviceName() + ' has nothing to show. Other panels may still work.';
+  }
+  return 'Could not play this panel on ' + castDeviceName() +
+         (code ? ' (' + code + ')' : '') + '. Check the TV is on and the input is right.';
+}
+
+function castResendCurrent() {
+  if (!castSession) { hideCastStatus(); return; }
+  if (currentIdx < 0 || !manifest) return;
+  var data = panelCache[currentIdx];
+  if (!data) return;
+  setCastStatus('live', 'Sending to ' + castDeviceName() + '…');
+  castPanel(currentIdx, data);
+}
+
+if ($castResend) $castResend.addEventListener('click', castResendCurrent);
+if ($castStop) $castStop.addEventListener('click', function() {
+  try {
+    cast.framework.CastContext.getInstance().endCurrentSession(true);
+  } catch (e) { console.warn('Cast endCurrentSession failed:', e); }
+  hideCastStatus();
+});
 
 function updateCastBtn() {
   if (!$castBtn) return;
@@ -2077,12 +2193,17 @@ function castPanel(i, data) {
   var attempts = 0;
   (function attempt() {
     if (!castSession) return; // session ended while waiting
+    if (attempts > 0) setCastStatus('live', 'Retrying on ' + castDeviceName() + '…');
     castSession.loadMedia(req).catch(function(err) {
       attempts++;
       if (attempts <= 4 && castSession) {
         setTimeout(attempt, attempts * 1500);
       } else {
+        // This used to be a bare console.warn. A panel with no baked cast.mp4
+        // then looked exactly like a TV that was switched off — which is how a
+        // whole live test got wasted (2026-09-15). Say it on screen.
         console.warn('Cast loadMedia failed after retries:', err);
+        setCastStatus('error', castLoadErrorText(err, baked));
       }
     });
   })();
@@ -2115,6 +2236,7 @@ function castHoldImage(i, data) {
 
 function onCastConnected() {
   updateCastBtn();
+  setCastStatus('live', 'Casting to ' + castDeviceName());
   stopNarration(); // stop local audio immediately
   if (currentIdx >= 0 && manifest) {
     var data = panelCache[currentIdx];
@@ -2133,6 +2255,7 @@ function onCastConnected() {
 
 function onCastDisconnected() {
   updateCastBtn();
+  hideCastStatus();
   castHolding = false;
   // Return to the phone paused at the current panel — don't auto-read aloud.
   if (currentIdx >= 0 && manifest) {
