@@ -532,7 +532,13 @@ html, body {
    desktop. Above a landscape breakpoint we lay image and text side by side and
    switch the image to `contain` so the whole picture shows, uncropped. Mobile
    portrait and cast (a separately baked file) are unaffected. */
-@media (min-width: 900px) and (orientation: landscape) {
+/* Width alone decides this, deliberately. The rule used to also require
+   (orientation: landscape); that clause failed on real desktop browsers,
+   so the whole desktop block never applied and the base mobile rule
+   (object-fit: cover) cropped tall images top and bottom — the contact
+   sheet losing its first and last rows was this, not an overflow. A wide
+   viewport is the thing we actually care about. */
+@media (min-width: 900px) {
   .panel-view { flex-direction: row; }
   .panel-img-section { flex: 0 0 56%; height: 100%; }
   /* Beat the base `cover` rule for carousel slides too — the plain
@@ -1607,7 +1613,7 @@ function initCarousel(panelEl, slides) {
   // On a wide landscape screen every slide is laid out side by side, so
   // rotating them would just shuffle the layout under the reader. Only run the
   // timer when the slides are actually stacked. Matches the CSS breakpoint.
-  const sideBySide = window.matchMedia('(min-width: 900px) and (orientation: landscape)');
+  const sideBySide = window.matchMedia('(min-width: 900px)');
   autoTimer = setInterval(function() {
     if (sideBySide.matches) return;
     if (!panelEl.classList.contains('active')) return;
