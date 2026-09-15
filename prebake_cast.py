@@ -2,7 +2,7 @@
 """Pre-bake per-panel cast.mp4 files for Google Cast (Default Media Receiver).
 
 For each panel that has both an image and a narration MP3, downloads the assets
-from the live Worker, bakes a 1280×720 landscape MP4 (still image + audio) with
+from the live Worker, bakes a 1080p landscape MP4 (still image + audio) with
 ffmpeg, and uploads the result to R2 as cast.mp4.
 
 The existing asset route GET /api/walkthroughs/{id}/asset/{panelId}/cast.mp4
@@ -35,6 +35,9 @@ FFMPEG = "/opt/homebrew/bin/ffmpeg"
 R2_BUCKET = "parkins-ai-walkthroughs"
 WORKER_BASE = "https://walkthrough.parkins.ai"
 
+# The Worker 403s urllib's default user-agent, so every request sets this.
+_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; prebake-cast/1.0)"}
+
 # The still image is held in the video well past the narration audio so that on
 # Cast the receiver never switches from video-mode to photo-mode (that switch is
 # what causes the one-off flicker at narration end). One continuous clip shows
@@ -47,12 +50,22 @@ HOLD_FPS = 1
 # carousel's 5s auto-advance so cast and web stay in step.
 PER_IMAGE_SECONDS = 5
 
-ALL_WALKTHROUGHS = [
-    "computing-heroes",
-    "natural-history-museum-2026",
-    "poem-anthology",
-    "science-museum",
-]
+# Cast caps *image* media at 720p, but this bakes **video**, which is not capped
+# there — H.264 1080p plays across the Chromecast line. Baking at 1080p is what
+# lets a panel actually use the TV's landscape screen. Sources smaller than this
+# are padded into the frame, never upscaled past their own resolution.
+FRAME_W = 1920
+FRAME_H = 1080
+
+
+def all_walkthroughs() -> list[str]:
+    """Every walkthrough the live Worker knows about.
+
+    Deliberately not a hardcoded list: one used to live here and went stale, so
+    Munich and the wedding were silently never baked and cast 404'd on them."""
+    req = urllib.request.Request(f"{WORKER_BASE}/api/walkthroughs", headers=_HEADERS)
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return [w["id"] for w in json.load(resp)]
 
 _print_lock = threading.Lock()
 
@@ -76,7 +89,6 @@ def get_cf_token() -> str:
 
 # ── Network helpers ──────────────────────────────────────────────────────────
 
-_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; prebake-cast/1.0)"}
 
 
 def fetch_json(url: str) -> dict:
@@ -114,13 +126,13 @@ def r2_upload(local: Path, r2_key: str, cf_token: str) -> None:
 # ── ffmpeg bake ───────────────────────────────────────────────────────────────
 
 def _normalize(image: Path, out: Path) -> bool:
-    """Scale+pad a single image to a 1280×720 frame so all slides share the same
+    """Scale+pad a single image to a FRAME_W×FRAME_H frame so all slides share the same
     dimensions (required for the concat demuxer to stitch them)."""
     cmd = [
         FFMPEG, "-y", "-i", str(image),
         "-vf", (
-            "scale=1280:720:force_original_aspect_ratio=decrease,"
-            "pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1"
+            f"scale={FRAME_W}:{FRAME_H}:force_original_aspect_ratio=decrease,"
+            f"pad={FRAME_W}:{FRAME_H}:(ow-iw)/2:(oh-ih)/2,setsar=1"
         ),
         "-frames:v", "1", str(out),
     ]
@@ -131,7 +143,7 @@ def _normalize(image: Path, out: Path) -> bool:
 
 
 def bake_cast(images: list[Path], audio: Path | None, out: Path, workdir: Path) -> bool:
-    """Bake a 1280×720 landscape MP4 that rotates through the panel's images at
+    """Bake a FRAME_W×FRAME_H landscape MP4 that rotates through the panel's images at
     PER_IMAGE_SECONDS each (matching the web carousel), looping to fill
     HOLD_SECONDS. Audio plays once at the start, then silence — so casting keeps
     the picture rotating with no video→photo flicker. When there is no narration
@@ -320,7 +332,7 @@ def main() -> None:
 
     cf_token = get_cf_token()
 
-    walkthroughs = [args.walkthrough] if args.walkthrough else ALL_WALKTHROUGHS
+    walkthroughs = [args.walkthrough] if args.walkthrough else all_walkthroughs()
 
     total_ok = total_skip = total_fail = 0
     for wid in walkthroughs:
