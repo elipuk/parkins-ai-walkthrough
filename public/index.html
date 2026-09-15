@@ -1134,6 +1134,10 @@ let drawerOpen = false;
 let castSession = null, castPlayer = null, castCtrl = null;
 let castAvailable = false, castMediaHad = false, castHolding = false;
 let castContinueTimer = null;
+// Every deferred showContinue goes through this so teardown can cancel it. An
+// orphaned one firing after disconnect is what makes the phone look like it
+// "reset" on its own.
+let continueTimer = null;
 const panelCache = {}, articleCache = {};
 
 // ── DOM ────────────────────────────────────────────────────────────────────
@@ -1552,6 +1556,7 @@ function stopNarration() {
   narEl.onloadedmetadata = null;
   if (narTimeTimer) { clearInterval(narTimeTimer); narTimeTimer = null; }
   if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
+  cancelPendingContinue();
   $narFill.style.transition = 'none';
   $narFill.style.width = '0%';
   $narLabel.textContent = '';
@@ -1564,6 +1569,13 @@ function stopNarration() {
 
 function showContinue() {
   $continuBtn.classList.add('visible');
+}
+function showContinueSoon(ms) {
+  if (continueTimer) clearTimeout(continueTimer);
+  continueTimer = setTimeout(function() { continueTimer = null; showContinue(); }, ms);
+}
+function cancelPendingContinue() {
+  if (continueTimer) { clearTimeout(continueTimer); continueTimer = null; }
 }
 function hideContinue() {
   $continuBtn.classList.remove('visible');
@@ -1619,7 +1631,7 @@ function playNarration(panelView, i, data, startPaused) {
       $narRestartBtn.style.display = '';
     } else {
       // No narration → image held on TV; show Continue promptly
-      setTimeout(showContinue, 800);
+      showContinueSoon(800);
     }
     startTextStagger(panelView);
     return;
@@ -1648,7 +1660,7 @@ function playNarration(panelView, i, data, startPaused) {
     $narFill.style.transition = 'width 0.4s ease';
     $narFill.style.width = '100%';
     revealSentences(panelView, 1);
-    setTimeout(showContinue, 600);
+    showContinueSoon(600);
   };
 
   narEl.ontimeupdate = syncProgress;
@@ -2046,7 +2058,7 @@ function initCastApi() {
         castCtrl.addEventListener(
           cast.framework.RemotePlayerEventType.PLAYER_STATE_CHANGED,
           function() {
-            if (!castPlayer) return;
+            if (!castPlayer || !castSession) return;
             var st = castPlayer.playerState;
             if (st === chrome.cast.media.PlayerState.PLAYING) {
               // Something is actually on screen now, so clear any error the
@@ -2069,7 +2081,7 @@ function initCastApi() {
                 // phone, but do NOT touch the cast session — the TV is only
                 // re-loaded when the viewer actually changes panel.
                 castMediaHad = false;
-                setTimeout(showContinue, 600);
+                showContinueSoon(600);
               }
             }
           }
@@ -2261,12 +2273,34 @@ function onCastDisconnected() {
   updateCastBtn();
   hideCastStatus();
   castHolding = false;
-  // Return to the phone paused at the current panel — don't auto-read aloud.
+
+  // Anything still queued from the cast session — a deferred Continue, the
+  // narration-end timer — must not survive the teardown. Graham disconnected and
+  // the phone started reading aloud from the top (2026-09-15); an orphaned timer
+  // firing after the session object was already gone is the shape of that.
+  cancelPendingContinue();
+  if (castContinueTimer) { clearTimeout(castContinueTimer); castContinueTimer = null; }
+
+  // Stay on the current panel, paused. Do not restart the walkthrough, do not
+  // autoplay locally.
   if (currentIdx >= 0 && manifest) {
-    var pv   = $stage.querySelector('.panel-view.active');
+    var pv   = $stage.querySelector('.panel-view.active') ||
+               $stage.querySelector('.panel-view.settling');
     var data = panelCache[currentIdx];
     if (pv && data) playNarration(pv, currentIdx, data, true);
   }
+
+  // Belt and braces: whatever the path above did, the phone ends up paused at
+  // the current position with the play control offering to resume. This is the
+  // state Graham asked for, asserted rather than assumed.
+  narEl.pause();
+  narPaused = true;
+  if (panelCache[currentIdx] && panelCache[currentIdx].narration) {
+    $narPauseBtn.textContent = '▶';
+    $narPauseBtn.style.display = '';
+    $narRestartBtn.style.display = '';
+  }
+  hideContinue();
 }
 
 // The <google-cast-launcher> element handles the connect/disconnect dialog and
