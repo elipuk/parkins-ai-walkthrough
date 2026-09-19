@@ -6,3 +6,7 @@ __pycache__/
 # Local source-of-truth tree for walkthrough content (personal/holiday photos).
 # Mirrors what's in R2, but stays out of the public git remote.
 content/
+# Local artefacts. The worktree convention says `git add -A` is fine — and it
+# is, with respect to other agents. It is not safe with respect to junk, so the
+# junk has to be named here rather than remembered at staging time.
+*.bak-*
